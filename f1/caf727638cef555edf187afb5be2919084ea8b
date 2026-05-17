@@ -1,0 +1,932 @@
+deep-research/DELEGATION_TEMPLATES.md
+  494418bc35f8c951 1-129 gitai:{"mixed_line_ranges":[],"operations":[{"operation_id":"6a09cf502b0054ad08a06aaa","tool_type":"agent","tool_id":"SearchReplace","line_ranges":[{"Range":[1,129]}]}]}
+research-review/SKILL.md
+  494418bc35f8c951 16-18 gitai:{"mixed_line_ranges":[],"operations":[{"operation_id":"6a09cf502b0054ad08a06aaa","tool_type":"agent","tool_id":"SearchReplace","line_ranges":[{"Range":[16,18]}]}]}
+research-writing/SKILL.md
+  494418bc35f8c951 16-18 gitai:{"mixed_line_ranges":[],"operations":[{"operation_id":"6a09cf502b0054ad08a06aaa","tool_type":"agent","tool_id":"SearchReplace","line_ranges":[{"Range":[16,18]}]}]}
+research-analysis/SKILL.md
+  494418bc35f8c951 16-18 gitai:{"mixed_line_ranges":[],"operations":[{"operation_id":"6a09cf502b0054ad08a06aaa","tool_type":"agent","tool_id":"SearchReplace","line_ranges":[{"Range":[16,18]}]}]}
+deep-research/STATE_PROTOCOL.md
+  494418bc35f8c951 1-190 gitai:{"mixed_line_ranges":[],"operations":[{"operation_id":"6a09cf502b0054ad08a06aaa","tool_type":"agent","tool_id":"SearchReplace","line_ranges":[{"Range":[1,190]}]}]}
+research-literature/MANUAL_DOWNLOAD.md
+  494418bc35f8c951 1-112 gitai:{"mixed_line_ranges":[],"operations":[{"operation_id":"6a09cf502b0054ad08a06aaa","tool_type":"agent","tool_id":"SearchReplace","line_ranges":[{"Range":[1,112]}]}]}
+README.md
+  494418bc35f8c951 168-190 gitai:{"mixed_line_ranges":[],"operations":[{"operation_id":"6a09cf502b0054ad08a06aaa","tool_type":"agent","tool_id":"SearchReplace","line_ranges":[{"Range":[168,190]}]}]}
+deep-research/REVISION_WORKFLOW.md
+  494418bc35f8c951 1-85 gitai:{"mixed_line_ranges":[],"operations":[{"operation_id":"6a09cf502b0054ad08a06aaa","tool_type":"agent","tool_id":"SearchReplace","line_ranges":[{"Range":[1,85]}]}]}
+CHANGELOG.md
+  494418bc35f8c951 9-69 gitai:{"mixed_line_ranges":[],"operations":[{"operation_id":"6a09cf502b0054ad08a06aaa","tool_type":"agent","tool_id":"SearchReplace","line_ranges":[{"Range":[9,69]}]}]}
+research-literature/SKILL.md
+  494418bc35f8c951 4,16-18,23-24,87-92,97,101-102,116,118,121,130,134,145,147,157,160,165-167,180,188,206,218,235,240-241,258-259,261-262,265-266,269,271,275,277-279,282,291 gitai:{"mixed_line_ranges":[],"operations":[{"operation_id":"6a09cf502b0054ad08a06aaa","tool_type":"agent","tool_id":"SearchReplace","line_ranges":[{"Single":4},{"Range":[16,18]},{"Range":[23,24]},{"Range":[87,92]},{"Single":97},{"Range":[101,102]},{"Single":116},{"Single":118},{"Single":121},{"Single":130},{"Single":134},{"Single":145},{"Single":147},{"Single":157},{"Single":160},{"Range":[165,167]},{"Single":180},{"Single":188},{"Single":206},{"Single":218},{"Single":235},{"Range":[240,241]},{"Range":[258,259]},{"Range":[261,262]},{"Range":[265,266]},{"Single":269},{"Single":271},{"Single":275},{"Range":[277,279]},{"Single":282},{"Single":291}]}]}
+deep-research/SKILL.md
+  494418bc35f8c951 4,14,19-22,24,26,28-29,33-37,39-40,46,48-49,51,59,66-67,69,77,79,81,86-87,93,98-102,104-105,113,115,119,121,216,218-221,227,229-234,236,239,242,247,255,260,262-263,266-267,270 gitai:{"mixed_line_ranges":[],"operations":[{"operation_id":"6a09cf502b0054ad08a06aaa","tool_type":"agent","tool_id":"SearchReplace","line_ranges":[{"Single":4},{"Single":14},{"Range":[19,22]},{"Single":24},{"Single":26},{"Range":[28,29]},{"Range":[33,37]},{"Range":[39,40]},{"Single":46},{"Range":[48,49]},{"Single":51},{"Single":59},{"Range":[66,67]},{"Single":69},{"Single":77},{"Single":79},{"Single":81},{"Range":[86,87]},{"Single":93},{"Range":[98,102]},{"Range":[104,105]},{"Single":113},{"Single":115},{"Single":119},{"Single":121},{"Single":216},{"Range":[218,221]},{"Single":227},{"Range":[229,234]},{"Single":236},{"Single":239},{"Single":242},{"Single":247},{"Single":255},{"Single":260},{"Range":[262,263]},{"Range":[266,267]},{"Single":270}]}]}
+research-advisor/SKILL.md
+  494418bc35f8c951 16-18 gitai:{"mixed_line_ranges":[],"operations":[{"operation_id":"6a09cf502b0054ad08a06aaa","tool_type":"agent","tool_id":"SearchReplace","line_ranges":[{"Range":[16,18]}]}]}
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "f1caf727638cef555edf187afb5be2919084ea8b",
+  "prompts": {
+    "494418bc35f8c951": {
+      "agent_id": {
+        "tool": "trae",
+        "id": "6a095be02b0054ad08a06807",
+        "model": "openrouter-2o__dev"
+      },
+      "human_author": "LucaPeng <624948921@qq.com>",
+      "messages": [],
+      "total_additions": 839,
+      "total_deletions": 780,
+      "accepted_lines": 731,
+      "overriden_lines": 15
+    }
+  },
+  "attestation_metadata": {
+    "CHANGELOG.md": [
+      {
+        "hash": "494418bc35f8c951",
+        "line_ranges": [
+          {
+            "Range": [
+              9,
+              69
+            ]
+          }
+        ],
+        "mixed_line_ranges": [],
+        "operations": [
+          {
+            "operation_id": "6a09cf502b0054ad08a06aaa",
+            "tool_type": "agent",
+            "tool_id": "SearchReplace",
+            "line_ranges": [
+              {
+                "Range": [
+                  9,
+                  69
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "README.md": [
+      {
+        "hash": "494418bc35f8c951",
+        "line_ranges": [
+          {
+            "Range": [
+              168,
+              190
+            ]
+          }
+        ],
+        "mixed_line_ranges": [],
+        "operations": [
+          {
+            "operation_id": "6a09cf502b0054ad08a06aaa",
+            "tool_type": "agent",
+            "tool_id": "SearchReplace",
+            "line_ranges": [
+              {
+                "Range": [
+                  168,
+                  190
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "deep-research/DELEGATION_TEMPLATES.md": [
+      {
+        "hash": "494418bc35f8c951",
+        "line_ranges": [
+          {
+            "Range": [
+              1,
+              129
+            ]
+          }
+        ],
+        "mixed_line_ranges": [],
+        "operations": [
+          {
+            "operation_id": "6a09cf502b0054ad08a06aaa",
+            "tool_type": "agent",
+            "tool_id": "SearchReplace",
+            "line_ranges": [
+              {
+                "Range": [
+                  1,
+                  129
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "deep-research/REVISION_WORKFLOW.md": [
+      {
+        "hash": "494418bc35f8c951",
+        "line_ranges": [
+          {
+            "Range": [
+              1,
+              85
+            ]
+          }
+        ],
+        "mixed_line_ranges": [],
+        "operations": [
+          {
+            "operation_id": "6a09cf502b0054ad08a06aaa",
+            "tool_type": "agent",
+            "tool_id": "SearchReplace",
+            "line_ranges": [
+              {
+                "Range": [
+                  1,
+                  85
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "deep-research/SKILL.md": [
+      {
+        "hash": "494418bc35f8c951",
+        "line_ranges": [
+          {
+            "Single": 4
+          },
+          {
+            "Single": 14
+          },
+          {
+            "Range": [
+              19,
+              22
+            ]
+          },
+          {
+            "Single": 24
+          },
+          {
+            "Single": 26
+          },
+          {
+            "Range": [
+              28,
+              29
+            ]
+          },
+          {
+            "Range": [
+              33,
+              37
+            ]
+          },
+          {
+            "Range": [
+              39,
+              40
+            ]
+          },
+          {
+            "Single": 46
+          },
+          {
+            "Range": [
+              48,
+              49
+            ]
+          },
+          {
+            "Single": 51
+          },
+          {
+            "Single": 59
+          },
+          {
+            "Range": [
+              66,
+              67
+            ]
+          },
+          {
+            "Single": 69
+          },
+          {
+            "Single": 77
+          },
+          {
+            "Single": 79
+          },
+          {
+            "Single": 81
+          },
+          {
+            "Range": [
+              86,
+              87
+            ]
+          },
+          {
+            "Single": 93
+          },
+          {
+            "Range": [
+              98,
+              102
+            ]
+          },
+          {
+            "Range": [
+              104,
+              105
+            ]
+          },
+          {
+            "Single": 113
+          },
+          {
+            "Single": 115
+          },
+          {
+            "Single": 119
+          },
+          {
+            "Single": 121
+          },
+          {
+            "Single": 216
+          },
+          {
+            "Range": [
+              218,
+              221
+            ]
+          },
+          {
+            "Single": 227
+          },
+          {
+            "Range": [
+              229,
+              234
+            ]
+          },
+          {
+            "Single": 236
+          },
+          {
+            "Single": 239
+          },
+          {
+            "Single": 242
+          },
+          {
+            "Single": 247
+          },
+          {
+            "Single": 255
+          },
+          {
+            "Single": 260
+          },
+          {
+            "Range": [
+              262,
+              263
+            ]
+          },
+          {
+            "Range": [
+              266,
+              267
+            ]
+          },
+          {
+            "Single": 270
+          }
+        ],
+        "mixed_line_ranges": [],
+        "operations": [
+          {
+            "operation_id": "6a09cf502b0054ad08a06aaa",
+            "tool_type": "agent",
+            "tool_id": "SearchReplace",
+            "line_ranges": [
+              {
+                "Single": 4
+              },
+              {
+                "Single": 14
+              },
+              {
+                "Range": [
+                  19,
+                  22
+                ]
+              },
+              {
+                "Single": 24
+              },
+              {
+                "Single": 26
+              },
+              {
+                "Range": [
+                  28,
+                  29
+                ]
+              },
+              {
+                "Range": [
+                  33,
+                  37
+                ]
+              },
+              {
+                "Range": [
+                  39,
+                  40
+                ]
+              },
+              {
+                "Single": 46
+              },
+              {
+                "Range": [
+                  48,
+                  49
+                ]
+              },
+              {
+                "Single": 51
+              },
+              {
+                "Single": 59
+              },
+              {
+                "Range": [
+                  66,
+                  67
+                ]
+              },
+              {
+                "Single": 69
+              },
+              {
+                "Single": 77
+              },
+              {
+                "Single": 79
+              },
+              {
+                "Single": 81
+              },
+              {
+                "Range": [
+                  86,
+                  87
+                ]
+              },
+              {
+                "Single": 93
+              },
+              {
+                "Range": [
+                  98,
+                  102
+                ]
+              },
+              {
+                "Range": [
+                  104,
+                  105
+                ]
+              },
+              {
+                "Single": 113
+              },
+              {
+                "Single": 115
+              },
+              {
+                "Single": 119
+              },
+              {
+                "Single": 121
+              },
+              {
+                "Single": 216
+              },
+              {
+                "Range": [
+                  218,
+                  221
+                ]
+              },
+              {
+                "Single": 227
+              },
+              {
+                "Range": [
+                  229,
+                  234
+                ]
+              },
+              {
+                "Single": 236
+              },
+              {
+                "Single": 239
+              },
+              {
+                "Single": 242
+              },
+              {
+                "Single": 247
+              },
+              {
+                "Single": 255
+              },
+              {
+                "Single": 260
+              },
+              {
+                "Range": [
+                  262,
+                  263
+                ]
+              },
+              {
+                "Range": [
+                  266,
+                  267
+                ]
+              },
+              {
+                "Single": 270
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "deep-research/STATE_PROTOCOL.md": [
+      {
+        "hash": "494418bc35f8c951",
+        "line_ranges": [
+          {
+            "Range": [
+              1,
+              190
+            ]
+          }
+        ],
+        "mixed_line_ranges": [],
+        "operations": [
+          {
+            "operation_id": "6a09cf502b0054ad08a06aaa",
+            "tool_type": "agent",
+            "tool_id": "SearchReplace",
+            "line_ranges": [
+              {
+                "Range": [
+                  1,
+                  190
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "research-advisor/SKILL.md": [
+      {
+        "hash": "494418bc35f8c951",
+        "line_ranges": [
+          {
+            "Range": [
+              16,
+              18
+            ]
+          }
+        ],
+        "mixed_line_ranges": [],
+        "operations": [
+          {
+            "operation_id": "6a09cf502b0054ad08a06aaa",
+            "tool_type": "agent",
+            "tool_id": "SearchReplace",
+            "line_ranges": [
+              {
+                "Range": [
+                  16,
+                  18
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "research-analysis/SKILL.md": [
+      {
+        "hash": "494418bc35f8c951",
+        "line_ranges": [
+          {
+            "Range": [
+              16,
+              18
+            ]
+          }
+        ],
+        "mixed_line_ranges": [],
+        "operations": [
+          {
+            "operation_id": "6a09cf502b0054ad08a06aaa",
+            "tool_type": "agent",
+            "tool_id": "SearchReplace",
+            "line_ranges": [
+              {
+                "Range": [
+                  16,
+                  18
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "research-literature/MANUAL_DOWNLOAD.md": [
+      {
+        "hash": "494418bc35f8c951",
+        "line_ranges": [
+          {
+            "Range": [
+              1,
+              112
+            ]
+          }
+        ],
+        "mixed_line_ranges": [],
+        "operations": [
+          {
+            "operation_id": "6a09cf502b0054ad08a06aaa",
+            "tool_type": "agent",
+            "tool_id": "SearchReplace",
+            "line_ranges": [
+              {
+                "Range": [
+                  1,
+                  112
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "research-literature/SKILL.md": [
+      {
+        "hash": "494418bc35f8c951",
+        "line_ranges": [
+          {
+            "Single": 4
+          },
+          {
+            "Range": [
+              16,
+              18
+            ]
+          },
+          {
+            "Range": [
+              23,
+              24
+            ]
+          },
+          {
+            "Range": [
+              87,
+              92
+            ]
+          },
+          {
+            "Single": 97
+          },
+          {
+            "Range": [
+              101,
+              102
+            ]
+          },
+          {
+            "Single": 116
+          },
+          {
+            "Single": 118
+          },
+          {
+            "Single": 121
+          },
+          {
+            "Single": 130
+          },
+          {
+            "Single": 134
+          },
+          {
+            "Single": 145
+          },
+          {
+            "Single": 147
+          },
+          {
+            "Single": 157
+          },
+          {
+            "Single": 160
+          },
+          {
+            "Range": [
+              165,
+              167
+            ]
+          },
+          {
+            "Single": 180
+          },
+          {
+            "Single": 188
+          },
+          {
+            "Single": 206
+          },
+          {
+            "Single": 218
+          },
+          {
+            "Single": 235
+          },
+          {
+            "Range": [
+              240,
+              241
+            ]
+          },
+          {
+            "Range": [
+              258,
+              259
+            ]
+          },
+          {
+            "Range": [
+              261,
+              262
+            ]
+          },
+          {
+            "Range": [
+              265,
+              266
+            ]
+          },
+          {
+            "Single": 269
+          },
+          {
+            "Single": 271
+          },
+          {
+            "Single": 275
+          },
+          {
+            "Range": [
+              277,
+              279
+            ]
+          },
+          {
+            "Single": 282
+          },
+          {
+            "Single": 291
+          }
+        ],
+        "mixed_line_ranges": [],
+        "operations": [
+          {
+            "operation_id": "6a09cf502b0054ad08a06aaa",
+            "tool_type": "agent",
+            "tool_id": "SearchReplace",
+            "line_ranges": [
+              {
+                "Single": 4
+              },
+              {
+                "Range": [
+                  16,
+                  18
+                ]
+              },
+              {
+                "Range": [
+                  23,
+                  24
+                ]
+              },
+              {
+                "Range": [
+                  87,
+                  92
+                ]
+              },
+              {
+                "Single": 97
+              },
+              {
+                "Range": [
+                  101,
+                  102
+                ]
+              },
+              {
+                "Single": 116
+              },
+              {
+                "Single": 118
+              },
+              {
+                "Single": 121
+              },
+              {
+                "Single": 130
+              },
+              {
+                "Single": 134
+              },
+              {
+                "Single": 145
+              },
+              {
+                "Single": 147
+              },
+              {
+                "Single": 157
+              },
+              {
+                "Single": 160
+              },
+              {
+                "Range": [
+                  165,
+                  167
+                ]
+              },
+              {
+                "Single": 180
+              },
+              {
+                "Single": 188
+              },
+              {
+                "Single": 206
+              },
+              {
+                "Single": 218
+              },
+              {
+                "Single": 235
+              },
+              {
+                "Range": [
+                  240,
+                  241
+                ]
+              },
+              {
+                "Range": [
+                  258,
+                  259
+                ]
+              },
+              {
+                "Range": [
+                  261,
+                  262
+                ]
+              },
+              {
+                "Range": [
+                  265,
+                  266
+                ]
+              },
+              {
+                "Single": 269
+              },
+              {
+                "Single": 271
+              },
+              {
+                "Single": 275
+              },
+              {
+                "Range": [
+                  277,
+                  279
+                ]
+              },
+              {
+                "Single": 282
+              },
+              {
+                "Single": 291
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "research-review/SKILL.md": [
+      {
+        "hash": "494418bc35f8c951",
+        "line_ranges": [
+          {
+            "Range": [
+              16,
+              18
+            ]
+          }
+        ],
+        "mixed_line_ranges": [],
+        "operations": [
+          {
+            "operation_id": "6a09cf502b0054ad08a06aaa",
+            "tool_type": "agent",
+            "tool_id": "SearchReplace",
+            "line_ranges": [
+              {
+                "Range": [
+                  16,
+                  18
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "research-writing/SKILL.md": [
+      {
+        "hash": "494418bc35f8c951",
+        "line_ranges": [
+          {
+            "Range": [
+              16,
+              18
+            ]
+          }
+        ],
+        "mixed_line_ranges": [],
+        "operations": [
+          {
+            "operation_id": "6a09cf502b0054ad08a06aaa",
+            "tool_type": "agent",
+            "tool_id": "SearchReplace",
+            "line_ranges": [
+              {
+                "Range": [
+                  16,
+                  18
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "remote_transcripts": {
+    "494418bc35f8c951": {
+      "tool": "trae",
+      "conversation_id": "6a095be02b0054ad08a06807",
+      "session_id": "6a095be02b0054ad08a06807",
+      "status": "remote_only",
+      "message": "Remote transcript resolution is not implemented yet for TRAE prompts."
+    }
+  }
+}
