@@ -1,0 +1,33 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Trae / Hermes 本地缓存（如有）
+.trae/
+.hermes-cache/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.env
+
+# Node
+node_modules/
+
+# 临时 / 日志
+*.log
+*.bak
+*.tmp
+.cache/
