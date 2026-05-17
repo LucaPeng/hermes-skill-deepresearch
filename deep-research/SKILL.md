@@ -1,7 +1,7 @@
 ---
 name: deep-research
 description: 多Agent学术研究 — 启动完整研究团队，完成从选题到论文终稿的全流程
-version: 1.3.0
+version: 1.5.0
 metadata:
   hermes:
     tags: [research, academic, paper, multi-agent, orchestration]
@@ -261,22 +261,30 @@ delegate_task(
 请加载 /research-literature skill 指导你的工作。
 
 可用工具:
-- /cnki-paper-downloader: 从 CNKI 下载论文全文，输入为论文的完整标题，每次仅一篇
-- web 工具: 搜索论文标题、查找引用关系、获取摘要
+- /cnki-paper-downloader: 从 CNKI 下载中文论文全文，输入为论文的完整标题，每次仅一篇
+- terminal: 调用 Semantic Scholar / OpenAlex API 进行英文论文发现、摘要获取、引文图谱遍历，以及 OA PDF 下载
+- web 工具: Google Scholar 辅助、确认论文元数据
+- file: 保存笔记和综述
 
 重要约束: 你是 SubAgent，不能直接与用户交互。如果遇到超出能力的问题，在输出中标注 [需升级] 并说明原因，由总指挥决定是否升级。
 
 工作步骤:
 1. 设计搜索策略（关键词 + 布尔组合）
-2. 通过 web 搜索发现论文标题（CNKI site search, Google Scholar）
-3. 使用 /cnki-paper-downloader 逐篇下载论文全文
-4. 精读已下载论文，写结构化笔记
+2. 文献发现（双通道）:
+   - 中文: web 搜索 site:cnki.net + 关键词
+   - 英文: terminal curl S2 / OpenAlex API（含引文图谱滚雪球）
+3. 论文获取（按等级）:
+   - CNKI 中文全文 → /cnki-paper-downloader
+   - OA PDF 全文 → wget/curl 下载
+   - 仅摘要 → S2/OpenAlex abstract 字段
+   - 元数据节点 → 仅记录基本信息
+4. 精读已下载论文，写结构化笔记（含来源等级、外部 ID、OA 链接）
 5. 整合为初步文献综述报告
 6. 识别 3-5 个研究缺口
 
-输出: 一份完整的初步文献综述报告 (Markdown)，含文献获取状态表
+输出: 一份完整的初步文献综述报告 (Markdown)，含文献获取状态表（来源 + 等级）
     """,
-    toolsets=["web", "file"]
+    toolsets=["web", "file", "terminal"]
 )
 ```
 
@@ -285,18 +293,18 @@ delegate_task(
 delegate_task(tasks=[
     {
         "goal": "检索 [理论A] 相关文献",
-        "context": "请加载 /research-literature skill。\n\n可用工具: /cnki-paper-downloader（输入论文完整标题，每次一篇）。\n\n重要约束: 你是 SubAgent，不能直接与用户交互。遇到问题在输出中标注 [需升级]。\n\n研究主题: ...\n搜索范围: ...\n输出: 该理论的研究现状总结 + 10-15 篇核心文献笔记（含获取状态）",
-        "toolsets": ["web", "file"]
+        "context": "请加载 /research-literature skill。\n\n可用工具: /cnki-paper-downloader（中文全文）、terminal（S2/OpenAlex API）、web、file。\n\n重要约束: 你是 SubAgent，不能直接与用户交互。遇到问题在输出中标注 [需升级]。\n\n研究主题: ...\n搜索范围: ...\n输出: 该理论的研究现状总结 + 10-15 篇核心文献笔记（含来源、等级、OA 状态）",
+        "toolsets": ["web", "file", "terminal"]
     },
     {
         "goal": "检索 [理论B] 相关文献",
-        "context": "请加载 /research-literature skill。\n\n可用工具: /cnki-paper-downloader（输入论文完整标题，每次一篇）。\n\n重要约束: 你是 SubAgent，不能直接与用户交互。遇到问题在输出中标注 [需升级]。\n\n同上...",
-        "toolsets": ["web", "file"]
+        "context": "请加载 /research-literature skill。\n\n可用工具: /cnki-paper-downloader、terminal、web、file。\n\n重要约束: 你是 SubAgent，不能直接与用户交互。遇到问题在输出中标注 [需升级]。\n\n同上...",
+        "toolsets": ["web", "file", "terminal"]
     },
     {
         "goal": "检索 [变量/现象] 的实证研究",
-        "context": "请加载 /research-literature skill。\n\n可用工具: /cnki-paper-downloader（输入论文完整标题，每次一篇）。\n\n重要约束: 你是 SubAgent，不能直接与用户交互。遇到问题在输出中标注 [需升级]。\n\n同上...",
-        "toolsets": ["web", "file"]
+        "context": "请加载 /research-literature skill。\n\n可用工具: /cnki-paper-downloader、terminal、web、file。\n\n重要约束: 你是 SubAgent，不能直接与用户交互。遇到问题在输出中标注 [需升级]。\n\n同上...",
+        "toolsets": ["web", "file", "terminal"]
     }
 ])
 ```
@@ -350,7 +358,9 @@ delegate_task(
 引文格式: APA 7th Edition
 目标期刊: [期刊名/无特定]
 
-输出: 完整章节文本 (Markdown)
+**强制 (防幻觉)**: 每个引用必须在草稿末尾"引用清单"中列出（含笔记路径、来源等级、引用页/段）。详见 /research-writing 中"引用规则（防幻觉）"。
+
+输出: 完整章节文本 (Markdown)，**末尾附完整引用清单**
     """,
     toolsets=["file", "web"]
 )
@@ -369,7 +379,9 @@ delegate_task(
 审查重点: [逻辑/引文/方法/格式/全面]
 本轮审查编号: 第 [N] 轮
 
-输出: 结构化审查报告 (含问题分级: 🔴严重/🟡中度/🟢轻微)
+**强制 (防幻觉)**: 必须先执行"引用真实性核查"4 个 Step（清单完整性 / 笔记存在性 / 来源等级匹配 / 关键论断原文比对），再做内容审查。详见 /research-review 中"引用真实性核查"。
+
+输出: 结构化审查报告 (含问题分级: 🔴严重/🟡中度/🟢轻微，**含引用真实性核查结果**)
     """,
     toolsets=["file", "web"]
 )
@@ -395,7 +407,9 @@ delegate_task(
 - 方法论的适当性
 - 结论的可信度和可推广性
 
-输出: 学术评审报告 (含评级 A/B/C/D + 改进建议)
+**重点 (对抗性审查)**: 必须执行 Devil's Advocate 角色，回答 4 个对抗性问题（替代解释 / 证伪路径 / 样本边界 / 理论选择），并列出攻击点（🔴致命/🟡严重/🟢警告）。详见 /research-advisor 中"对抗性提问"。
+
+输出: 学术评审报告 (含评级 A/B/C/D + **对抗性审查章节** + 改进建议)
     """,
     toolsets=["file", "web"]
 )

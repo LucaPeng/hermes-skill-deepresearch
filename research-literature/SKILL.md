@@ -1,7 +1,7 @@
 ---
 name: research-literature
 description: 学术文献检索与综述 — 系统性检索、文献笔记、理论分析、研究缺口识别
-version: 1.1.0
+version: 1.3.0
 metadata:
   hermes:
     tags: [research, literature, academic, survey, citation, cnki]
@@ -24,19 +24,73 @@ metadata:
 
 ## 数据源与工具
 
-### 主要数据源: CNKI（中国知网）
-当前可用的全文数据库为 CNKI。大部分论文应从 CNKI 检索和获取。
+### 中文全文链路
+- **CNKI**（主）：通过 `/cnki-paper-downloader` 逐篇下载
+- 适用：中文社科 / 管理类核心期刊与博硕论文
 
-### 论文下载工具: `/cnki-paper-downloader`
+### 英文元数据 / 图谱链路（通过 terminal 调免费 API）
+
+> 用途定位：S2 与 OpenAlex 主要用于**论文发现 + 摘要 + 引文图谱**。
+> 它们**不一定提供全文 PDF**，仅当返回字段中含 OA 链接时才能下载全文，否则只能拿摘要。
+
+#### Semantic Scholar (S2)
+- 端点: `https://api.semanticscholar.org/graph/v1/paper/search`
+- 限频: 100 req / 5min（免费，无需 key）；申请 key 可放宽
+- 推荐字段: `title,abstract,authors,year,venue,citationCount,openAccessPdf,externalIds,referenceCount`
+- 示例:
+  ```bash
+  curl -s "https://api.semanticscholar.org/graph/v1/paper/search?query=social+commerce+trust&limit=20&fields=title,abstract,authors,year,citationCount,openAccessPdf,externalIds"
+  ```
+- 引文/被引图谱:
+  ```bash
+  # 某论文的参考文献
+  curl -s "https://api.semanticscholar.org/graph/v1/paper/{paperId}/references?fields=title,year,authors,abstract"
+  # 某论文的被引列表
+  curl -s "https://api.semanticscholar.org/graph/v1/paper/{paperId}/citations?fields=title,year,authors,abstract"
+  ```
+
+#### OpenAlex
+- 端点: `https://api.openalex.org/works`
+- 限频: 完全免费，10 req/s（建议在 User-Agent 加 `mailto:` 提速）
+- 优势: 主题分类（concepts）、作者作品集、机构归属、OA 状态标签
+- 示例:
+  ```bash
+  curl -s "https://api.openalex.org/works?search=social+commerce+trust&per-page=25" \
+       -H "User-Agent: research-literature (mailto:your@email)"
+  ```
+- 引文/被引:
+  ```bash
+  # 某论文的参考文献 (referenced_works)
+  curl -s "https://api.openalex.org/works/{work_id}" -H "User-Agent: ..."
+  # 被引论文（cites this work）
+  curl -s "https://api.openalex.org/works?filter=cites:{work_id}" -H "User-Agent: ..."
+  ```
+
+#### OA PDF 直链下载
+- S2 返回的 `openAccessPdf.url` 或 OpenAlex 的 `open_access.oa_url` 非空时，可用 `wget`/`curl` 下载到本地，作为**全文笔记**来源
+- 否则该论文只能作为**摘要笔记**或**元数据节点**
+
+#### 限频与失败处理
+- S2 限频时返回 429 → SubAgent 应退避（sleep 5s）后重试，最多 3 次
+- 网络失败 → 跳过该论文，记录到获取状态表，不阻塞流程
+
+### 论文下载工具（中文）: `/cnki-paper-downloader`
 - **功能**: 从 CNKI 下载一篇具体论文的全文
 - **输入**: 论文的**完整标题**（必须准确）
 - **限制**: 每次只能下载一篇，需逐篇调用
 - **使用方式**: 加载 `/cnki-paper-downloader` skill，提供论文标题
 
-### 辅助数据源（检索用，不一定能获取全文）
-- Google Scholar — 用于发现英文文献、获取引用关系
-- Semantic Scholar — 用于查看引用网络和摘要
+### 辅助检索（仅作发现，不一定能获取全文）
+- Google Scholar — 用于引用关系交叉验证
 - Web 搜索 — 用于补充信息、确认论文元数据
+
+### 三类笔记体系（来源等级）
+
+| 来源等级 | 来源 | 用途 |
+|---|---|---|
+| **全文** | CNKI 下载 / OA PDF | 可作核心论据，必须含 ≥2-3 段原文 quote |
+| **摘要** | S2 / OpenAlex / CNKI 仅摘要 | 背景引用，不得支撑具体数据/方法细节 |
+| **元数据** | S2 / OpenAlex（仅引文图谱节点） | 仅作研究地形测绘，不得正文引用 |
 
 ## 工作流程
 
@@ -54,19 +108,31 @@ CNKI 检索式: (概念A) AND (概念B)
 
 ### Step 2: 文献发现（确定论文标题清单）
 
-**目标：建立一份待下载的论文标题清单。**
+**目标：建立一份待处理的论文清单，并标注其预期来源等级（全文 / 摘要 / 元数据）。**
 
 方法：
-1. **Web 搜索 CNKI**：通过 web 工具搜索 `site:cnki.net [关键词]` 或直接搜索关键词 + "知网" 找到相关论文标题
-2. **Google Scholar 辅助**：搜索英文/中文关键词，发现高引论文，再确认其 CNKI 可用性
-3. **滚雪球法**：从已下载论文的参考文献中提取标题，扩展检索
-4. **综述论文优先**：先找到该领域的综述/述评文章，从中批量获取参考文献标题
+1. **CNKI 通道**（中文）：通过 web 工具搜索 `site:cnki.net [关键词]` 或直接搜索关键词 + "知网"，定位中文核心论文
+2. **S2 / OpenAlex 通道**（英文 + 跨语种）：用 terminal 调 API
+   ```bash
+   # 主题搜索 (S2)
+   curl -s "https://api.semanticscholar.org/graph/v1/paper/search?query={关键词}&limit=25&fields=title,abstract,authors,year,citationCount,openAccessPdf,externalIds"
+   # 主题搜索 (OpenAlex，含 concept 分类)
+   curl -s "https://api.openalex.org/works?search={关键词}&per-page=25" -H "User-Agent: research (mailto:x@y)"
+   ```
+3. **引文图谱滚雪球**：拿到种子论文（综述 / 高引）后，用 S2 的 `/references` 与 `/citations` 端点批量发现关联论文
+4. **Google Scholar 辅助**：用于补查作者作品集、识别中英文同主题对应论文
 
-产出：一份**论文标题清单**（15-30 篇），按优先级排序。
+每篇论文做归类决定：
+- 有 OA PDF → 进入"全文"候选 → 下载并精读
+- 仅有摘要（S2/OpenAlex 摘要、或 CNKI 收录但因故未能下载） → 进入"摘要"候选
+- 仅在引文图谱中出现 → 进入"元数据"候选（不写笔记内容，仅记节点）
 
-### Step 3: 论文下载（逐篇）
+产出：一份**论文清单**（15–30 篇），含标题、来源、预期等级、优先级。
 
-对清单中的每篇论文，使用 `/cnki-paper-downloader`：
+### Step 3: 论文获取（按等级分别处理）
+
+#### 中文全文（CNKI）
+对清单中的中文全文候选，使用 `/cnki-paper-downloader`：
 ```
 /cnki-paper-downloader [论文完整标题]
 ```
@@ -74,9 +140,25 @@ CNKI 检索式: (概念A) AND (概念B)
 **注意事项：**
 - 标题必须准确完整（含副标题，如有）
 - 每次一篇，逐篇下载
-- 如果下载失败（标题不匹配/CNKI 无收录），标记为 `[未获取]` 并记录
-- 优先下载：高引用 > 核心期刊 > 近年发表 > 与研究直接相关
-- 对无法从 CNKI 获取的英文文献，通过 web 搜索获取摘要和关键信息
+- 下载失败 → 标记为 `[未获取]` 或降级为"摘要"等级（如 web 能拿到摘要）
+
+#### 英文/OA 全文（S2 / OpenAlex）
+对返回 OA PDF 链接的英文论文：
+```bash
+# 直接下载 OA PDF
+wget -O paper-{shortid}.pdf "{openAccessPdf.url}"
+# 或
+curl -L -o paper-{shortid}.pdf "{open_access.oa_url}"
+```
+下载成功 → 全文笔记；失败 → 降级为摘要笔记。
+
+#### 摘要笔记
+S2 / OpenAlex 返回的 `abstract` 字段可直接摘录到笔记，**不允许扩写或推测原文未提及的内容**。
+
+#### 元数据节点
+仅记录论文的 title / authors / year / 主题概念 / 引文位置，不写内容。
+
+优先级建议：高引用 > 综述/核心 > 近年发表 > 与研究直接相关。
 
 ### Step 4: 精读与笔记
 
@@ -88,8 +170,15 @@ CNKI 检索式: (概念A) AND (概念B)
 **基本信息**
 - 作者: [First Author et al., Year]
 - 期刊: [Journal Name]
-- 来源: CNKI / [其他]
+- 来源: CNKI / Semantic Scholar / OpenAlex / [其他]
 - 引用数: [N]（如可查）
+- **来源等级**: 全文 / 摘要 / 元数据   ← 撰写者引用时要据此判断可否引用
+- **外部 ID**:
+  - DOI: [10.xxxx/yyyy 或 N/A]
+  - S2 paperId: [xxxxxxxx 或 N/A]
+  - OpenAlex Work ID: [Wxxxxxxxxx 或 N/A]
+  - CNKI ID: [xxxxxx 或 N/A]
+- **OA 链接**: [openAccessPdf.url 或 oa_url 或 N/A]
 
 **核心观点**
 [2-3 句概括核心论点和发现]
@@ -119,11 +208,13 @@ CNKI 检索式: (概念A) AND (概念B)
 # 文献综述: [研究主题]
 
 ## 1. 检索概况
-- 主要数据源: CNKI
+- 主要数据源:
+  - 中文全文: CNKI
+  - 英文元数据/图谱: Semantic Scholar, OpenAlex
 - 辅助来源: Google Scholar, Web
 - 检索策略: [关键词和组合]
 - 纳入标准: [筛选条件]
-- 最终纳入: [N] 篇（其中全文 [M] 篇，仅摘要 [K] 篇）
+- 最终纳入: [N] 篇（全文 [a] / 摘要 [b] / 元数据 [c]）
 
 ## 2. 理论基础
 ### 2.1 [理论A]
@@ -153,11 +244,12 @@ CNKI 检索式: (概念A) AND (概念B)
 [GB/T 7714 或 APA 7 格式，按字母/拼音排序]
 
 ## 附录: 文献获取情况
-| 序号 | 标题 | 状态 | 备注 |
-|---|---|---|---|
-| 1 | [标题] | ✅ 全文 | |
-| 2 | [标题] | ⚠️ 仅摘要 | CNKI 未收录 |
-| ... | | | |
+| 序号 | 标题 | 来源 | 等级 | 状态 | 备注 |
+|---|---|---|---|---|---|
+| 1 | [标题] | CNKI | 全文 | ✅ | |
+| 2 | [标题] | S2 | 摘要 | ✅ | 无 OA PDF |
+| 3 | [标题] | OpenAlex | 元数据 | ✅ | 仅作图谱节点 |
+| ... | | | | | |
 ```
 
 ## Gbrain 使用
@@ -172,14 +264,19 @@ CNKI 检索式: (概念A) AND (概念B)
 - 正反观点均需覆盖
 - 标注不确定的地方 `[待确认]`
 - 标注每篇文献的获取状态（全文/仅摘要/未获取）
+- **全文笔记必须包含至少 2-3 段原文 quote（带页码或章节定位）**，便于评审者比对撰写者的转述准确性
+- **摘要笔记不得伪造 quote**，仅可摘录摘要中的原文片段
 
 ## 效率建议
 - 先批量确定标题清单（20-30 篇），再集中下载，避免边找边下
 - 优先下载综述论文 — 一篇综述可提供 30-50 个参考文献标题
-- 对英文文献：先 web 获取摘要和关键信息，如确实需要全文再标注 `[需升级: 需其他数据库权限]`
+- 对英文文献：优先用 S2 / OpenAlex 拿摘要 + 引文图谱；只有当返回 OA PDF 时才下载全文，否则按"摘要"等级处理
+- 引文滚雪球：拿到种子论文 paperId / Work ID 后，批量调 references / citations 端点，比手动搜索高效得多
+- 限频应对：S2 限频时 sleep 5s 重试；OpenAlex 在 User-Agent 中带 mailto: 可获更稳定的 polite pool
 
 ## 升级条件（回报给总指挥）
 - 研究方向可能需要调整（领域饱和/无新发现空间）
-- 大量核心文献无法从 CNKI 获取（如研究主题偏英文文献）
+- 大量核心文献无法从 CNKI 获取**且 S2/OpenAlex 也无 OA 全文**（仅摘要不够支撑核心论据）
 - 跨学科内容超出理解能力
 - 检索结果严重不足
+- S2 / OpenAlex API 持续限频或不可达，影响发现进度
