@@ -139,6 +139,7 @@ CNKI 检索式: (概念A) AND (概念B)
 ### Step 3: 论文获取（按等级分别处理）
 
 #### 中文全文（CNKI）
+对清单中的中文全文候选，使用 `/cnki-paper-downloader`：
 ```
 /cnki-paper-downloader [论文完整标题]
 ```
