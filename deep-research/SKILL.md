@@ -1,7 +1,7 @@
 ---
 name: deep-research
 description: 多Agent学术研究 — 启动完整研究团队，完成从选题到论文终稿的全流程
-version: 1.8.1
+version: 1.8.2
 metadata:
   hermes:
     tags: [research, academic, paper, multi-agent, orchestration]
@@ -38,6 +38,56 @@ metadata:
 
 完整探测流程、状态文件结构与模板、Checkpoint 维护规则 → **见 [STATE_PROTOCOL.md](./STATE_PROTOCOL.md)**。
 REVISE 分支详细工作流 → **见 [REVISION_WORKFLOW.md](./REVISION_WORKFLOW.md)**。
+
+---
+
+### 🚨 启动后强制状态初始化清单（NEW / RESUME / REVISE 三分支通用）
+
+> ⚠️ **不是"参考流程"，是 hard requirement**。任何 Phase 1+ 的 delegate **必须**在以下文件已经物理写入 `~/.hermes/research-state/{slug}/` 之后才能发起。否则视为协议违规。
+
+启动探测分流后、**第一次 delegate SubAgent 之前**，总指挥必须用 `file` 工具完成下列动作（按顺序）：
+
+#### NEW 分支（新建研究）必须立即写入：
+1. ✅ `file.write` 创建目录 `~/.hermes/research-state/{slug}/`
+2. ✅ `file.write` 创建 `~/.hermes/research-state/{slug}/checkpoint.md`（套用 STATE_PROTOCOL.md 中的 checkpoint 模板，填充 last_updated / mode / status=in_progress / 课题元信息 / Phase 进度全为 ⬜ pending / 当前待办=Phase 1.1 启动）
+3. ✅ `file.write` 创建 `~/.hermes/research-state/{slug}/timeline.md`，写入第一条事件：`[START] mode=...`
+4. ✅ `file.read` + `file.write` 更新 `~/.hermes/research-state/index.md`（不存在则创建表头），追加本课题一行
+5. ✅ 可选：预创建子目录 `meta/` `literature/` `drafts/` `revisions/`（首次 delegate 时由产出触发也可）
+
+#### RESUME 分支（断点续跑）必须立即：
+1. ✅ `file.read` 读取 `{slug}/checkpoint.md` 与 `{slug}/timeline.md`
+2. ✅ 解析 last_updated / status / 当前 Phase / 待办；supervised 模式向用户报告续跑点等待确认
+3. ✅ `file.write` 在 timeline.md 追加 `[RESUME] from Phase X / 待办首项: ...`
+4. ✅ 不得跳过这两步直接 delegate
+
+#### REVISE 分支（修订模式）必须立即：
+1. ✅ `file.write` 创建 `{slug}/revisions/R{n}-{date}/` 目录
+2. ✅ `file.write` 写入 feedback.md（原始反馈不可改）+ revision-plan.md（拆解任务）+ status.md
+3. ✅ `file.write` 更新 checkpoint.md 顶部 status=revising，timeline 追加 `[REVISION_BEGIN] R{n}`
+4. 详见 [REVISION_WORKFLOW.md](./REVISION_WORKFLOW.md)
+
+#### ⛔ 验证门禁（完成上述动作后必须自检）
+
+发起第一次 `delegate_task` 之前，总指挥**必须**输出一行自检确认（让人类可核验）：
+
+```
+✅ 状态已初始化:
+   - {slug}/checkpoint.md (size=...B)
+   - {slug}/timeline.md   (size=...B)
+   - index.md             (rows=...)
+```
+
+若任一文件未写入 → **立即停止**，不得继续 delegate；先补齐写入再推进。
+
+#### ♻️ 运行期持续维护（每次 delegate 返回后）
+
+每次 SubAgent 返回结果时，**总指挥必须立即**用 `file` 工具：
+1. **更新** checkpoint.md（覆盖式）：Phase 进度 / 子任务勾选 / 待办前移 / 已建立产出物追加路径 / last_updated 时间戳
+2. **追加** timeline.md：`[DELEGATE] <skill>[mode=...]: <一句话摘要>`
+3. Phase 切换时额外追加 `[PHASE] X done → Y begin`
+4. 触发按需追加下载时追加 `extension_requests` 段一行 + `[EXTENSION_REQUEST]` 事件
+
+⚠️ **如果某次 delegate 后你没有更新 checkpoint/timeline，下一次 delegate 之前必须先补写**——否则 RESUME 时无法准确定位中断点。
 
 ---
 
@@ -379,10 +429,11 @@ Phase 切换时发非阻塞通知（见上文）。
 
 ## Pitfalls
 
+- **🚨 启动后必须立即写入状态文件** — NEW 分支若 `~/.hermes/research-state/{slug}/checkpoint.md` 与 `timeline.md` 未物理写入，**严禁发起任何 delegate**；这是 RESUME 能找到中断点的唯一依据
+- **🚨 每次 delegate 返回后必须立即更新 checkpoint + timeline** — 不是"建议"是 hard requirement；空目录 / 空 timeline = 协议违规；中断后将无法续跑
 - **delegate 时必须传完整上下文** — SubAgent 看不到你的对话历史
 - **每次 delegate 都指明加载哪个 skill** — context 开头写 "请加载 /xxx skill"
 - **每次 delegate 都加 SubAgent 约束** — 不能直接与用户交互；需要回报产出文件路径
-- **每次 delegate 返回后立即更新 checkpoint + timeline** — 不可批量延迟，否则中断时丢失进度
 - **修订模式 delegate context 必须含基线路径 + 反馈 ID** — 否则 SubAgent 无从下手
 - **supervised 不跳过人类审批** — 发出审批请求后立即停止
 - **autonomous 完全不阻塞** — 任何情况都不暂停，自行解决所有问题

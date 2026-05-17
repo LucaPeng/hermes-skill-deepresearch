@@ -255,9 +255,12 @@ Phase 6: 修订定稿
   └─ delegate → 评审者: 终审确认
   └─ supervised: ⏸️ 人类最终审定
 
-每次 delegate 返回 → 总指挥更新 checkpoint.md + 追加 timeline.md
+每次 delegate 返回 → 总指挥**立即用 file 工具**更新 checkpoint.md + 追加 timeline.md（hard requirement）
 Phase 切换 → 写「关键决策记录」+ timeline `[PHASE] X done → Y begin`
 研究完成 → checkpoint.status=completed + index.md 同步
+
+⚠️ 启动后强制状态初始化：NEW 分支必须先物理落盘 checkpoint.md / timeline.md / index.md
+   并输出 ✅ 自检确认行后，才能发起第一次 delegate；否则视为协议违规。
 ```
 
 ### 4.2 修订生命周期（revise 分支）

@@ -6,6 +6,36 @@
 
 ---
 
+## [M4.2: 状态写入强制化 — 修复 research-state 目录长期为空] - 2026-05-17
+
+**问题诊断**：实际运行中发现 `~/.hermes/research-state/` 目录一直为空。根因是设计文档中"创建 checkpoint.md / timeline.md / index.md"的描述用了模糊的命令式表述（"创建 / 初始化 / 维护"），LLM 在执行时把这些当成了"参考流程"而非"必须的 file 工具调用"，导致状态文件从未真实落盘，进而 RESUME 永远找不到任何课题。
+
+### Skill 版本变更
+
+| Skill | 旧版本 | 新版本 |
+|---|---|---|
+| `deep-research` | 1.8.1 | **1.8.2** |
+
+### 修复 (Fixed)
+
+- **deep-research/SKILL.md** 主文档新增 **「🚨 启动后强制状态初始化清单」** 一级段：
+  - 明确 NEW / RESUME / REVISE 三分支各自必须立即执行的 `file.write` / `file.read` 调用清单
+  - 引入 **⛔ 验证门禁**：发起第一次 `delegate_task` 之前必须输出自检确认行（`✅ 状态已初始化: ...`）
+  - 引入 **♻️ 运行期持续维护**：每次 delegate 返回后必须立即 `file.write` 更新 checkpoint + 追加 timeline，且如有遗漏必须在下一次 delegate 之前补写
+- **deep-research/STATE_PROTOCOL.md** NEW 分支由 5 步通用伪代码 → **7 步具体 file 工具调用清单**（含 `file.list` / `file.write` / `file.read` 显式标注）+ 验证门禁
+- **STATE_PROTOCOL.md** RESUME 分支补充 `file.read` / `file.write` 显式标注，timeline 写入 `[RESUME]` 必须在 delegate 前完成
+- **STATE_PROTOCOL.md** Checkpoint 维护规则段顶部加入显著警告框：「不是建议是 hard requirement，文件必须真实落盘」
+- **Pitfalls 新增 2 条状态红线**（顶部最高优先级）：
+  - 启动后必须立即写入状态文件，未写入严禁 delegate
+  - 每次 delegate 返回后必须立即更新 checkpoint + timeline，空目录 = 协议违规
+- **docs/README.md** Checkpoint 维护流程框补充 hard requirement 警示
+
+### 设计动机
+
+Skills 系统的执行体是 LLM，对模糊的命令式动词（"创建"/"维护"/"初始化"）默认理解为"流程参考"而非"必须真实调用工具"。修复策略不是改变设计，而是把所有应当落盘的动作都用 `file.write` / `file.read` 显式动词替代，并加入"自检确认行"作为验证门禁，让漏写在第一次启动时就能被发现。
+
+---
+
 ## [M4.1: 边界一致性修复 — 退路冲突 / 用户响应 / 空 essays / 状态衔接] - 2026-05-17
 
 针对 M4 引入后的 Review 发现的 4 个关键问题做边界对齐修复，避免实际运行时出现死循环、阻塞或状态错乱。

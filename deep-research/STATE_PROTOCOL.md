@@ -53,16 +53,42 @@
    └── 未命中                     → goto NEW 分支
 ```
 
-### NEW 分支（新建研究）
-1. 用户输入推算 `slug`（去标点 + 拼音/英文小写 + 截 30 字 + 短哈希）
-2. 创建 `~/.hermes/research-state/{slug}/`
-3. 在 `index.md` 追加一行（slug / 课题 / status=in_progress / mode / 时间戳 / 路径）
-4. 初始化 `checkpoint.md` + `timeline.md`（模板见下文）
-5. 进入 Phase 1
+### NEW 分支（新建研究）— 必须按顺序执行下列 file 工具调用
+
+> ⚠️ 这是 hard requirement，**不是参考流程**。下列每一步都是真实的 file 工具调用，不是脑内决策。任一遗漏会导致 RESUME 失败。
+
+```
+1. 推算 slug
+   - 去标点 + 拼音/英文小写 + 截 30 字 + 短哈希
+   - 例：「社交电商中消费者信任的形成机制」→ social-commerce-trust-{hash6}
+
+2. file.list ~/.hermes/research-state/
+   - 不存在则用 file.write 工具创建（部分 IDE 可通过 file.write 自动建目录）
+
+3. file.write ~/.hermes/research-state/{slug}/checkpoint.md
+   - 严格套用本文档「状态文件模板」中的 checkpoint.md 模板
+   - 必填: last_updated（now）/ mode / status=in_progress / 课题元信息 /
+          Phase 进度（全部为 ⬜ pending）/ 当前待办（"启动 Phase 1.1"）
+
+4. file.write ~/.hermes/research-state/{slug}/timeline.md
+   - 首行: # Timeline: {课题}
+   - 第二行: - {now} [START] mode={supervised|autonomous}
+
+5. file.read ~/.hermes/research-state/index.md
+   - 不存在则 file.write 创建（含表头 | Slug | 课题描述 | 状态 | 模式 | 最后更新 | 路径 |）
+   - 用 file.write（覆盖式）追加本课题一行（| {slug} | ... | in_progress | {mode} | {now} | ~/.hermes/research-state/{slug}/ |）
+
+6. ⛔ 验证门禁（必须输出给用户/日志）
+   - 用 file.read 重新读三个文件确认内容已落盘
+   - 输出自检确认行（见 SKILL.md 启动后强制状态初始化清单段）
+   - 若任一文件 size=0 或读取失败 → 不得 delegate，先重写
+
+7. 进入 Phase 1.1（此时才允许第一次 delegate_task）
+```
 
 ### RESUME 分支（断点续跑）
-1. 读 `{slug}/checkpoint.md` 解析 Phase 进度 + 当前子任务 + 待办
-2. 读 `{slug}/timeline.md` 最近 20 条事件 → 构建上下文摘要
+1. `file.read` `{slug}/checkpoint.md` 解析 Phase 进度 + 当前子任务 + 待办
+2. `file.read` `{slug}/timeline.md` 最近 20 条事件 → 构建上下文摘要
 3. supervised：向用户报告续跑点并请确认
    ```
    🔁 检测到已有研究 checkpoint
@@ -71,9 +97,10 @@
    下一步: {待办列表}
    是否续跑？(yes / no / 我要修改方向)
    ```
-   autonomous：直接续跑，不询问，但在 timeline 追加 `[RESUME]` 事件
-4. 严格从 checkpoint「待办」第一项开始 delegate，**不重做已完成项**
-5. 每次 delegate 返回后立即更新 checkpoint + 追加 timeline
+   autonomous：直接续跑，不询问
+4. ✅ `file.write` 在 timeline.md 追加 `- {now} [RESUME] from Phase {X} / 待办首项: {...}`（必须在 delegate 前写入）
+5. 严格从 checkpoint「待办」第一项开始 delegate，**不重做已完成项**
+6. 每次 delegate 返回后立即 `file.write` 更新 checkpoint + 追加 timeline（见下方 Checkpoint 维护规则）
 
 ### REVISE 分支
 详见 [REVISION_WORKFLOW.md](./REVISION_WORKFLOW.md)。
@@ -207,15 +234,18 @@ status: in_progress | paused | completed | revising
 
 ## Checkpoint 维护规则（强制）
 
-每次 delegate 返回后，**总指挥必须**：
+> ⚠️ **这一段是 hard requirement，不是建议**。`~/.hermes/research-state/{slug}/` 目录中的文件**必须**真实落盘到磁盘（用 `file` 工具调用），而不是只在脑内"维护"。如果你只在响应中口头描述"我已更新 checkpoint"但没调用 `file.write`，等于状态丢失。
+
+每次 delegate 返回后，**总指挥必须立即**：
 1. 解析 SubAgent 返回结果，提取产出文件的绝对路径
-2. 用 file 工具更新 `~/.hermes/research-state/{slug}/checkpoint.md`：
+2. ✅ **调用 `file.write`** 覆盖式更新 `~/.hermes/research-state/{slug}/checkpoint.md`：
    - 在「Phase 进度」更新当前 Phase 的产出
    - 在「子任务」勾选完成项 / 添加新项
    - 在「待办」更新下一步
    - 在「已建立的产出物」追加新路径
-3. 用 file 工具追加到 `~/.hermes/research-state/{slug}/timeline.md`：
-   - `[DELEGATE] <skill>: <goal> → <returned summary>`
+   - 顶部 `last_updated` 更新为 now
+3. ✅ **调用 `file.write`** 追加到 `~/.hermes/research-state/{slug}/timeline.md`：
+   - `- {now} [DELEGATE] <skill>[mode=...]: <goal> → <returned summary>`
 
 每次 Phase 切换前：
 1. 写入 checkpoint.md「关键决策记录」
