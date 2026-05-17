@@ -1,7 +1,7 @@
 ---
 name: research-literature
 description: 学术文献检索与综述 — 系统性检索、文献笔记、理论分析、研究缺口识别
-version: 1.6.0
+version: 1.7.0
 metadata:
   hermes:
     tags: [research, literature, academic, survey, citation, cnki]
@@ -100,9 +100,261 @@ metadata:
 
 ---
 
+## 工作模式总览（防幻觉核心约束）
+
+> 本 skill 接受 delegate 时，context 中**必须**带 `mode` 字段，决定执行哪种工作流。
+
+| mode | 触发阶段 | 核心动作 | ⚠️ 禁忌 |
+|---|---|---|---|
+| `draft` | Phase 1.1 调研草案 | 输出研究方向草案 + 论文获取建议清单（A 类）| 不得声称"已检索/已读过"任何具体论文，不得编造作者-年份-标题 |
+| `intensive_read` | Phase 1.2 精读 | 仅对 `~/Downloads/essays/` 中真实落盘 PDF 写全文笔记 | 不得用摘要冒充全文，不得对未落盘论文写笔记 |
+| `snowball` | Phase 1.2 滚雪球 | 基于已精读论文 references 拉 S2/OpenAlex → 输出 B 类清单 | 不得把 references 中的论文当作"已读"，只输出"建议下载" |
+| `review` | Phase 1.3 设计 review | 基于 Gbrain 真实笔记池审视 RQ + 框架 | 不得引用笔记池外的论文 |
+| `synthesis` | Phase 2 综述撰写 | 基于已有笔记池写综述 | 严禁新检索 + 引用笔记池外论文 |
+
+**通用红线**：所有模式下，凡引用具体论文必须满足"四真"：真标题 / 真作者 / 真年份 / 真本地路径或 Gbrain 笔记 ID。任何无法验证的引用 → 标 `[未确认]` 或直接删除。
+
+---
+
 ## 工作流程
 
-### Step 1: 搜索策略设计
+### Mode A: `draft` — 调研草案与获取建议（Phase 1.1）
+
+**目标**：让用户拿到一份"可执行的下载清单"，不接触任何真实论文内容。
+
+#### Step A1: 研究方向拆解
+基于 delegate context 给出的研究方向，拆解：
+```
+核心概念:
+- 概念A: [主题词] / [近义词] / [英文对应]
+- 概念B: [主题词] / [近义词] / [英文对应]
+潜在交互/调节: ...
+学科归属: 社科/管理/经济/...
+```
+
+#### Step A2: 候选 RQ 与理论框架（草案）
+输出 2-3 个候选 RQ + 2-3 个候选理论框架，标注每个候选的:
+- 适用边界
+- 主要争议
+- 经典代表文献（**仅给作者-年份**，不展开论述）
+
+#### Step A3: 关键学者与方向梳理
+基于通识知识（不调 API、不真检索）输出：
+- 关键学者：5-15 人，附「代表作（标题/年份/期刊）+ 所属学派」
+- 关键方向：3-5 个子领域 + 各自经典综述线索（标题级别的提示）
+- 经典综述线索：领域内被反复推崇的综述/教科书
+
+> ⚠️ 此处的作者-年份-标题信息允许基于通识知识给出，但**必须**在清单中明确标注：
+> `（信息源：通识/记忆，请用户在下载时核实标题与 DOI）`
+
+#### Step A4: 输出 acquisition-plan.md
+统一格式：
+
+```markdown
+# 论文获取建议清单 — Phase 1.1
+
+> 本清单由调研者基于通识知识生成，**未经过 API 真实检索**。
+> 请用户在下载前通过 CNKI / Google Scholar / S2 / OpenAlex 自行核实标题与 DOI。
+
+## 研究方向草案
+- 候选 RQ 1: ...
+- 候选 RQ 2: ...
+- 候选理论框架: SOR / TAM / 信任迁移 / ...
+
+## 检索关键词
+| 中文 | 英文 |
+|---|---|
+| 社交电商 信任 | social commerce trust |
+| ... | ... |
+
+布尔组合示例: (social commerce OR s-commerce) AND (trust OR credibility)
+
+## 关键学者
+| 学者 | 学派 / 机构 | 代表作（建议核实） |
+|---|---|---|
+| Kim, D. J. | ISU | "A trust-based consumer decision-making model" 2008 |
+| ... | ... | ... |
+
+## 关键方向 / 子领域
+1. 信任前因（信息质量、平台特征、口碑）
+2. 信任迁移（线下→线上 / 平台→卖家）
+3. ...
+
+## 经典综述线索（建议优先下载）
+- [Author Year] "Title" — Journal — 推测 DOI: ...
+
+## A 类下载清单（建议优先下载 15-30 篇）
+
+| # | 标题 | 作者 | 年份 | 期刊 | DOI（建议核实） | 建议文件名 | 优先级 |
+|---|---|---|---|---|---|---|---|
+| 1 | ... | ... | ... | ... | ... | author-year-journal-keyword.pdf | 🔴 |
+
+## 操作指引
+1. 用 CNKI / S2 / OpenAlex / Google Scholar 核实标题与 DOI
+2. 下载 PDF 到 `~/Downloads/essays/`
+3. 按"建议文件名"重命名（小写+短横线）
+4. 完成后告知"已下载完毕"或重新启动 /deep-research 续跑
+
+---
+
+## 产出文件清单
+- ~/.hermes/research-state/{slug}/meta/acquisition-plan.md
+- ~/.hermes/research-state/{slug}/meta/research-direction-draft.md
+```
+
+---
+
+### Mode B: `intensive_read` — 论文精读（Phase 1.2）
+
+**目标**：仅对真实落盘的 PDF 写结构化全文笔记。
+
+#### Step B1: 启动扫描
+```bash
+mkdir -p ~/Downloads/essays/
+ls -la ~/Downloads/essays/
+```
+得到当前已落盘 PDF 列表，与 Gbrain 中已存在笔记做差集 → 得到本次待精读列表。
+
+#### Step B2: 逐篇精读（每篇都读真 PDF）
+对每个 PDF，使用 file 工具读取内容，按"全文笔记模板"（见下文 Step 4 模板）写笔记：
+- ≥2-3 段原文 quote（带页码或章节定位）
+- 来源等级 = 「全文」
+- 本地路径必填
+- 写入 Gbrain（路径由 delegate context 指定）
+
+> ⚠️ 红线：
+> - 文件名匹配不上清单的 PDF → 列入「待人工归类」清单，不写笔记
+> - 读不出内容（损坏 / 加密）→ 列入「读取失败」清单，不伪造笔记
+> - 严禁基于标题/通识知识"脑补"笔记内容
+
+#### Step B3: 输出本轮精读报告
+```markdown
+# 精读报告 — Phase 1.2 第 N 轮
+
+## 已精读
+- note-001: [标题] (PDF: ~/Downloads/essays/xxx.pdf)
+- ...
+
+## 待人工归类（PDF 文件名无法匹配清单）
+- ~/Downloads/essays/random.pdf — 建议确认是哪一篇
+
+## 读取失败
+- ~/Downloads/essays/broken.pdf — PDF 损坏
+
+## 产出文件清单
+- Gbrain: literature/note-001 ... note-N
+- ~/.hermes/research-state/{slug}/literature/intensive-read-round-N.md
+```
+
+---
+
+### Mode C: `snowball` — 引用图谱滚雪球（Phase 1.2）
+
+**目标**：基于已精读论文的 references 发现"高频被引但本地缺失"的论文，输出 B 类下载清单。
+
+#### Step C1: 拉取已精读论文的 paperId / Work ID
+对每篇已精读论文，通过标题或 DOI 在 S2 / OpenAlex 反查得到 paperId。
+
+#### Step C2: 批量调引文 API
+```bash
+# S2 references
+curl -s "https://api.semanticscholar.org/graph/v1/paper/{paperId}/references?fields=title,year,authors,externalIds,openAccessPdf" \
+  > references-{shortid}.json
+```
+
+#### Step C3: 频次统计
+跨多篇本地论文统计 references 中的论文：
+- 出现 ≥3 次的 → 高优先级
+- 出现 2 次的 → 中优先级
+- 出现 1 次但出现在多篇综述中 → 中优先级
+
+剔除已在 `~/Downloads/essays/` 中的论文（按 DOI / 标题模糊匹配）。
+
+#### Step C4: 输出 extension-needed-roundN.md（B 类清单）
+```markdown
+# 滚雪球扩展下载清单 — Phase 1.2 第 N 轮 / 3
+
+| # | 标题 | 作者 | 年份 | DOI | 建议文件名 | 触发原因 | 优先级 |
+|---|---|---|---|---|---|---|---|
+| 1 | ... | ... | ... | 10.x/y | ... | 被 [note-003, note-007, note-012] 引用 | 🔴 |
+
+## 轮次状态
+- 当前轮次: N / 3
+- 本轮新增 B 类论文数: X
+- 上轮新增: Y
+
+## 后续动作
+- 若 N < 3：用户下载后进入第 N+1 轮
+- 若 N == 3：本轮为最后一轮，剩余未下载的论文由总指挥写入 extension-deferred.md
+  并交由后续 Phase 2/4/5 的「按需追加下载」机制处理
+- 若本轮 X == 0：自然收敛，可提前结束循环
+
+## 产出文件清单
+- ~/.hermes/research-state/{slug}/literature/extension-needed-round-N.md
+```
+
+> ⚠️ 重要约束（与总指挥协议保持一致）：
+> - Phase 1.2 滚雪球循环最多 3 轮，**不强求收敛**；调研者不得自行决定继续延长轮次
+> - 第 3 轮结束后任何剩余论文必须列入 `extension-deferred.md`，等待后续按需触发
+> - 若 SubAgent 收到 context 中 `round_count > 3`，应拒绝执行并 `[需升级]`
+
+---
+
+### Mode D: `review` — 调研设计 Review（Phase 1.3）
+
+**目标**：基于 Gbrain 真实笔记池审视 Phase 1.1 草案，产出可定稿的 research-design。
+
+#### Step D1: 笔记池盘点
+- 全文笔记数 / 摘要笔记数 / 元数据节点数
+- 主要理论分布（通过 Gbrain 实体关系）
+- 核心变量覆盖度
+
+#### Step D2: 草案逐项 challenge
+对 Phase 1.1 草案每条 RQ + 框架，回答：
+- 笔记池是否覆盖核心变量？
+- 是否有更主流框架在笔记中反复出现，应替换草案选项？
+- 研究缺口是否真实存在（笔记中是否已有研究覆盖）？
+
+#### Step D3: 输出 research-design-v1.md
+```markdown
+# 研究设计定稿 v1
+
+## 研究问题
+RQ: ...
+（依据笔记: note-003, note-007）
+
+## 理论框架
+[框架 + 关键变量]
+（依据笔记: note-001, note-005, note-012）
+
+## 研究缺口
+1. ... （未被以下笔记覆盖: ...）
+
+## 笔记池统计
+- 全文: N 篇
+- 摘要: M 篇
+- 元数据: K 篇
+
+## 产出文件清单
+- ~/.hermes/research-state/{slug}/meta/research-design-v1.md
+```
+
+---
+
+### Mode E: `synthesis` — 系统性综述（Phase 2）
+
+**目标**：基于已有笔记池撰写系统性综述，**严禁新检索**。
+
+工作流程见原 Step 5 模板（保留），增加约束：
+- 综述每个段落末尾必须列出引用的笔记 ID
+- 引用笔记必须实际存在于 Gbrain（评审者会做引用真实性 4 步核查）
+- 缺少引用支撑的论断 → 标 `[待补充全文笔记]` 而不是泛泛陈述
+
+---
+
+## 通用模板
+
+### Step 1-2: 搜索策略与文献发现（仅 `draft` / `snowball` 模式参考）
 ```
 核心概念拆解:
 - 概念A: [主题词] / [近义词] / [英文对应词]

@@ -1,10 +1,10 @@
 # 多 Agent DeepResearch 论文系统 — 项目方案文档
 
-> **版本**: v3.5
+> **版本**: v3.6.1
 > **日期**: 2026-05-17
 > **论文类型**: 社科/管理类
 > **技术选型**: Hermes Agent + Gbrain
-> **架构模式**: Skills 协同编排 + 双模式运行 (supervised / autonomous) + 三启动分支 (new / resume / revise)
+> **架构模式**: Skills 协同编排 + 双模式运行 (supervised / autonomous) + 三启动分支 (new / resume / revise) + Phase 1 三段式防选题幻觉
 
 ---
 
@@ -23,6 +23,7 @@
 - **不可变基线**：修订生成新版本文件（`*-v{x.y}-R{n}.md`），原产出物不可覆盖
 - **状态层与知识层分离**：运行时状态用本地 `~/.hermes/research-state/`，学术知识用 Gbrain
 - **防幻觉与对抗性审查**：引用必须可追溯到 Gbrain 笔记 + 来源等级匹配；学术顾问扮演 Devil's Advocate
+- **🚨 防选题幻觉（Phase 1 三段式）**：Phase 1 拆为「调研草案 → 论文精读与扩展 → 设计 review 定稿」，调研者在草案阶段**禁止虚构**已读论文，论文池必须基于 `~/Downloads/essays/` 真实落盘 PDF
 - **零侵入安装**：无需修改 SOUL.md 或 config.yaml，只装 Skills
 
 ### 1.3 技术选型
@@ -154,8 +155,11 @@
 
 | 阶段 | 审批内容 | 用户操作 |
 |---|---|---|
-| Phase 1 完成 | 研究问题 + 理论框架 | "可以" / 提出修改 |
-| Phase 2 完成 | 文献综述初稿 | "可以" / "需要补充 X 方向" |
+| Phase 1.1 完成 | 研究方向草案 + A 类下载清单 | 核实清单 → 手动下载 PDF 至 `~/Downloads/essays/` → "已下载完毕" |
+| Phase 1.2 入口（essays 不足） | 提醒「至少 5 篇真实 PDF 才能启动精读」 | 继续按 A 类清单下载 → "已下载完毕" |
+| Phase 1.2 滚雪球（每轮，最多 3 轮） | B 类扩展下载清单 | 三选一: "已下载完毕" / "部分跳过 #N1..." / "停止扩展"；第 3 轮结束自动转入 Phase 1.3 |
+| Phase 1.3 完成 | 修订后研究问题 + 理论框架（含 gate_passed 字段） | gate_passed=true → "可以"；gate_passed=false → 自动走按需追加下载（不退回 1.2） |
+| Phase 2 完成 | 文献综述初稿 | "可以" / "需要补充 X 方向"（走按需追加下载，不回退 Phase 1.2） |
 | Phase 2 中（如触发 Tier 3） | 人工下载清单 | 上传 PDF 至 `~/Downloads/essays/` 或 "放弃 #N" |
 | Phase 3 完成 | 研究设计方案 | "可以" / 修改方法 |
 | Phase 4 完成 | 数据分析结论 | "可以" / 调整分析 |
@@ -170,16 +174,64 @@
 ### 4.1 研究生命周期（new / resume 共用）
 
 ```
-Phase 1: 选题与调研设计
-  └─ delegate → 调研者: 初步文献检索 (CNKI 中文 + S2/OpenAlex 英文)
-  └─ 总指挥 + (可选) 学术顾问: 确定研究问题和理论框架
+Phase 1.1: 调研草案与获取建议（不接触真实文献）
+  └─ delegate → 调研者 [mode=draft]:
+       基于通识知识输出 → 研究方向草案 + 关键词 + 关键学者 + 关键方向 + A 类下载清单
+       ⚠️ 严禁虚构"已检索到的论文"，DOI 都标注「（建议核实）」
+  └─ supervised: ⏸️ 人类审批草案 → 用户下载 PDF 到 ~/Downloads/essays/
+       用户回复："已下载完毕" / "已下载部分（清单）"
+  └─ autonomous: 自动确认；不暂停，待 Phase 1.2 入口校验 essays
+
+Phase 1.2: 论文精读与滚雪球扩展（基于真实 PDF）
+  循环执行，硬上限 3 轮（不强求收敛）：
+  └─ Step 1 入口校验: essays < 5 篇 (启动下限) →
+       supervised 阻塞等用户继续下载（⚠️ 严禁自动跳 Tier 3）
+       autonomous 写 [BLOCKED] essays_empty 并 [需升级]
+  └─ delegate → 调研者 [mode=intensive_read]:
+       仅对真实落盘 PDF 写全文笔记（≥2-3 段原文 quote+页码），写入 Gbrain
+  └─ delegate → 调研者 [mode=snowball, round_count=N/3]:
+       基于已精读论文 references → S2/OpenAlex 引文图谱 → 输出 B 类下载清单
+  └─ supervised: ⏸️ 用户从三选一响应:
+       ① "已下载完毕"        → 进入第 N+1 轮
+       ② "部分跳过 #N1, #N2"  → 跳过项写入 skipped.md，其余进入下一轮
+       ③ "停止扩展"          → 立即结束，未下载并入 extension-deferred.md
+       autonomous: 输出清单不阻塞，标注下次 resume 处理
+  └─ 终止条件:
+       • round_count == 3 (硬上限) → 剩余论文写入 extension-deferred.md，进入 Phase 1.3
+       • 本轮无新增 → 自然收敛，提前结束
+       • 用户主动指令"停止扩展"
+
+Phase 1.3: 调研设计 review 与定稿
+  └─ delegate → 调研者 [mode=review]: 基于真实笔记池审视草案 → research-design-v1.md
+  └─ [可选] delegate → 学术顾问: Devil's Advocate 对抗性评审
+  └─ delegate → 评审者: 引用真实性 4 步核查（输出 boolean: gate_passed）
   └─ supervised: ⏸️ 人类审批
+       ✅ 定稿门禁：每条核心论断 ≥1 全文笔记 + 引用本地路径必须真实存在
+       ❌ gate_passed=false → 走「按需追加下载」（见下方），⚠️ 不退回 Phase 1.2 滚雪球
+            round_count 冻结，避免与 3 轮上限冲突
 
 Phase 2: 系统性文献综述
-  └─ delegate → 调研者(并行 ≤3): 多方向系统检索
-  └─ 如失败：触发 Tier 3 人工下载清单（写入 ~/Downloads/essays/）
-  └─ delegate → 评审者: 综述初审（含引用真实性 4 步核查）
+  └─ 文献池锚定：仅引用 Phase 1.2 已建立的笔记池
+  └─ delegate → 调研者 [mode=synthesis] (可并行 ≤3): 多维度综述
+  └─ 缺口需扩展 → 走「按需追加下载」机制（见下方），不回退 Phase 1.2
+  └─ delegate → 评审者: 综述初审 + 引用真实性 4 步核查
   └─ supervised: ⏸️ 人类审批
+
+📌 按需追加下载机制（Phase 1.3 / 2 / 4 / 5 通用）:
+  ① SubAgent 输出 partial 草稿 (drafts/{section}.partial.md) + [NEED:R-{seq}] 占位符
+  ② SubAgent 末尾追加「追加下载请求」（含 trigger_phase / 论文清单 / 优先级）
+  ③ 总指挥:
+     - 写入 extension-extra.md
+     - checkpoint.md 的 extension_requests 表追加: R-{seq}, status=pending_user_download
+     - timeline.md 追加 [EXTENSION_REQUEST] R-{seq}
+     - 去重: DOI 严格匹配；无 DOI 时标题 fuzzy match (编辑距离 < 5)
+  ④ supervised: ⏸️ 用户补下载 → 调研者 [mode=intensive_read] 单次精读
+     autonomous: 不阻塞，🔴 项标注 [待补充]
+  ⑤ 状态回写:
+     - R-{seq}.status: read_back + 完成时间
+     - timeline.md 追加 [EXTENSION_DONE]
+     - 重新 delegate 被中断章节，优先填充 [NEED:R-{seq}] 占位符
+  ⚠️ 不重启 Phase 1.2 滚雪球循环；Phase 1.3 触发时 round_count 冻结
 
 Phase 3: 研究设计
   └─ 总指挥: 制定方案（问卷/实验/案例/...）
@@ -188,12 +240,12 @@ Phase 3: 研究设计
 
 Phase 4: 数据分析
   └─ delegate → 数据分析师: 执行分析
-  └─ delegate → 调研者: 解读结果的理论含义
+  └─ delegate → 调研者: 解读结果的理论含义（仅用 essays 池笔记）
   └─ delegate → 学术顾问: 对抗性评估学术价值
   └─ supervised: ⏸️ 人类审批
 
 Phase 5: 论文撰写与审查
-  └─ delegate → 撰写者: 逐章撰写（强制三铁律 + 引用清单）
+  └─ delegate → 撰写者: 逐章撰写（强制三铁律 + 引用清单，仅用 essays 池）
   └─ delegate → 评审者: 逐章审查（引用真实性核查 + 多轮迭代）
   └─ delegate → 学术顾问: 全文 Devil's Advocate 终审
   └─ supervised: ⏸️ 人类审批
@@ -452,9 +504,10 @@ SubAgent 遇到问题
 | **M3**: 状态持久化 + 断点续跑 + 修订模式 | ✅ 完成 | `~/.hermes/research-state/` + resume / revise 分支 + 不可变基线（`ca5c0a8`） |
 | **M3.5**: Tier 3 人工下载兜底 | ✅ 完成 | `~/Downloads/essays/` + manual-download-needed 清单 |
 | **Refactor**: 长文件拆分 + 冗余精简 | ✅ 完成 | 4 个附录 .md + 主 SKILL 精简 +SubAgent 约束单一信息源（`f1caf72`） |
-| M4: 端到端验证（mini-topic 试跑） | ⬜ 待做 | 选定小课题 → 全流程跑通 → 验证英文引文图谱与 Tier 3 兜底 |
-| M5: 长流程稳定性回归（中断 → 续跑 → 修订） | ⬜ 待做 | 验证 token 中断、checkpoint 恢复、R1/R2 多轮修订 |
-| M6: 迭代优化 | ⬜ 持续 | 根据试跑反馈调整 Skills |
+| **M4**: 防选题幻觉 — Phase 1 三段式 | ✅ 完成 | Phase 1 拆为 1.1 草案 / 1.2 精读+滚雪球 / 1.3 设计 review；research-literature 引入 5 种 mode（draft / intensive_read / snowball / review / synthesis）；论文池强制锚定 `~/Downloads/essays/` |
+| M5: 端到端验证（mini-topic 试跑） | ⬜ 待做 | 选定小课题 → 全流程跑通 → 验证 Phase 1 三段闭环 + 英文引文图谱 + Tier 3 兜底 |
+| M6: 长流程稳定性回归（中断 → 续跑 → 修订） | ⬜ 待做 | 验证 token 中断、checkpoint 恢复、R1/R2 多轮修订 |
+| M7: 迭代优化 | ⬜ 持续 | 根据试跑反馈调整 Skills |
 
 ---
 

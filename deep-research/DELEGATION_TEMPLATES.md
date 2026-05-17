@@ -18,6 +18,178 @@
 
 ## 模板 1：启动文献调研（完整模板）
 
+> ⚠️ 自 v1.8.0 起，文献调研 delegate **必须**在 context 中带 `mode` 字段，明确本次任务属于哪种模式：
+> - `mode=draft` (Phase 1.1) - 仅输出研究方向草案 + A 类下载清单，禁止虚构论文
+> - `mode=intensive_read` (Phase 1.2) - 仅对 `~/Downloads/essays/` 真实落盘 PDF 写全文笔记
+> - `mode=snowball` (Phase 1.2) - 基于已精读论文 references 输出 B 类下载清单
+> - `mode=review` (Phase 1.3) - 基于真实笔记池 review 草案，产出 research-design 定稿
+> - `mode=synthesis` (Phase 2) - 基于已有笔记池写综述，严禁新检索
+
+### 模板 1a：Phase 1.1 调研草案（mode=draft）
+
+```python
+delegate_task(
+    goal="围绕 [主题] 输出研究方向草案 + 论文获取建议清单（A 类下载清单）",
+    context="""
+mode: draft
+研究方向: [用户给出的方向]
+学科领域: [社科/管理/经济/...]
+
+请加载 /research-literature skill，按 Mode A (draft) 工作流执行。
+
+⚠️ 严格红线（防选题幻觉）:
+- 不得声称"已检索到/已读过"任何具体论文
+- 不得调 S2/OpenAlex/CNKI 进行真实检索
+- 关键学者-代表作信息可基于通识知识给出，但必须标注「信息源：通识/记忆，请用户在下载时核实」
+- 输出的 A 类清单中每条 DOI 都要标注「（建议核实）」
+
+可用工具: file（仅写产出文件，不调 web 检索）
+
+重要约束: 你是 SubAgent，不能直接与用户交互。如果遇到超出能力的问题，在输出中标注 [需升级] 并说明原因。
+
+工作步骤: 见 /research-literature 的 Mode A 工作流（Step A1-A4）
+
+输出:
+- ~/.hermes/research-state/{slug}/meta/research-direction-draft.md
+- ~/.hermes/research-state/{slug}/meta/acquisition-plan.md（含 A 类下载清单）
+末尾附「产出文件清单」段，列出绝对路径。
+    """,
+    toolsets=["file"]
+)
+```
+
+### 模板 1b：Phase 1.2 论文精读（mode=intensive_read）
+
+```python
+delegate_task(
+    goal="对 ~/Downloads/essays/ 中尚未精读的 PDF 写结构化全文笔记",
+    context="""
+mode: intensive_read
+课题: [...]
+Gbrain 笔记路径: literature/{slug}/note-*
+
+请加载 /research-literature skill，按 Mode B (intensive_read) 工作流执行。
+
+⚠️ 严格红线（防论文幻觉）:
+- 仅对 ~/Downloads/essays/ 中真实落盘的 PDF 写笔记
+- 必须用 file 工具读 PDF 文本后写笔记（含 ≥2-3 段原文 quote 带页码）
+- 不得用摘要冒充全文，不得对未落盘论文写笔记
+- 文件名匹配不上清单 → 列入「待人工归类」清单
+- PDF 读取失败 → 列入「读取失败」清单，绝不伪造笔记
+
+可用工具: file (读 PDF + 写笔记), terminal（仅 ls 扫描）
+
+输出:
+- 每篇 PDF 一个 Gbrain 笔记
+- ~/.hermes/research-state/{slug}/literature/intensive-read-round-N.md（精读报告）
+末尾附「产出文件清单」段。
+    """,
+    toolsets=["file", "terminal"]
+)
+```
+
+### 模板 1c：Phase 1.2 滚雪球扩展（mode=snowball）
+
+```python
+delegate_task(
+    goal="基于已精读论文 references 输出 B 类下载清单（第 N 轮 / 3）",
+    context="""
+mode: snowball
+round_count: N  # 必填，1 / 2 / 3，硬上限 3 轮
+课题: [...]
+已精读笔记列表: [note-001, note-002, ...] (DOI / paperId 见各笔记元信息)
+本地已下载 PDF: ~/Downloads/essays/*.pdf
+上轮 B 类清单: ~/.hermes/research-state/{slug}/literature/extension-needed-round-{N-1}.md (round 1 时为空)
+
+请加载 /research-literature skill，按 Mode C (snowball) 工作流执行。
+
+⚠️ 红线:
+- 不得把 references 中的论文当作"已读"，仅输出"建议下载"
+- B 类清单中每条都标注「触发原因（被哪几篇本地论文引用）」+ 频次
+- 剔除已在 ~/Downloads/essays/ 中的论文 + 上轮已列入但已下载的论文
+- 本任务为第 N / 3 轮，N>3 时拒绝执行并 [需升级]
+
+可用工具: terminal (curl S2/OpenAlex), file
+
+输出:
+- ~/.hermes/research-state/{slug}/literature/extension-needed-round-N.md
+- 含「轮次状态」段（N/3、本轮新增数、上轮新增数）
+- 含「后续动作」段（继续 / 自然收敛 / 即将转入 deferred）
+末尾附「产出文件清单」段。
+    """,
+    toolsets=["file", "terminal"]
+)
+```
+
+> 📌 总指挥在第 3 轮结束后**必须**：
+> 1. 把仍未下载的 B 类论文聚合写入 `~/.hermes/research-state/{slug}/literature/extension-deferred.md`
+> 2. timeline 追加 `[PHASE] P1.2 done (rounds=3) → P1.3 begin`
+> 3. **不再发起第 4 轮 snowball delegate**，直接进入 Phase 1.3
+
+### 模板 1d：Phase 1.3 调研设计 review（mode=review）
+
+```python
+delegate_task(
+    goal="基于真实笔记池 review Phase 1.1 草案，产出 research-design 定稿",
+    context="""
+mode: review
+课题: [...]
+草案路径: ~/.hermes/research-state/{slug}/meta/research-direction-draft.md
+笔记池: Gbrain literature/{slug}/* + ~/Downloads/essays/*.pdf
+笔记池统计: 全文 N / 摘要 M / 元数据 K
+
+请加载 /research-literature skill，按 Mode D (review) 工作流执行。
+
+⚠️ 红线:
+- research-design-v1.md 中每条核心论断必须 anchor 到 ≥1 篇全文等级笔记
+- 引用清单中的本地路径必须真实存在于 ~/Downloads/essays/
+- 不得引用笔记池外的论文
+
+可用工具: file
+
+输出:
+- ~/.hermes/research-state/{slug}/meta/research-design-v1.md
+末尾附「产出文件清单」段。
+    """,
+    toolsets=["file"]
+)
+```
+
+### 模板 1e：Phase 2 系统性综述（mode=synthesis）
+
+```python
+delegate_task(
+    goal="基于已有笔记池撰写系统性文献综述",
+    context="""
+mode: synthesis
+课题: [...]
+笔记池路径: Gbrain literature/{slug}/*
+研究设计: ~/.hermes/research-state/{slug}/meta/research-design-v1.md
+
+请加载 /research-literature skill，按 Mode E (synthesis) 工作流执行。
+
+⚠️ 红线:
+- 严禁新检索 + 引用笔记池外论文
+- 综述每个段落末尾必须列出引用的笔记 ID
+- 缺少引用支撑的论断 → 标 [待补充全文笔记]，不要泛泛陈述
+
+可用工具: file
+
+输出:
+- Gbrain literature/{slug}/review-draft-v1
+- ~/.hermes/research-state/{slug}/literature/review-draft-v1.md
+末尾附「产出文件清单」段。
+    """,
+    toolsets=["file"]
+)
+```
+
+---
+
+## 模板 1（旧版兼容）：完整启动文献调研模板
+
+> 用于非分阶段的简化场景。生产环境优先使用 1a-1e 分阶段模板。
+
 ```python
 delegate_task(
     goal="围绕 [主题] 进行初步文献检索，识别核心理论、关键学者、主要方法和研究缺口",

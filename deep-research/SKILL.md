@@ -1,7 +1,7 @@
 ---
 name: deep-research
 description: 多Agent学术研究 — 启动完整研究团队，完成从选题到论文终稿的全流程
-version: 1.7.0
+version: 1.8.1
 metadata:
   hermes:
     tags: [research, academic, paper, multi-agent, orchestration]
@@ -124,24 +124,145 @@ SubAgent 在返回结果中标注 `[需升级]` 的问题：
 
 ## Research SOP
 
-### Phase 1: 选题与调研设计
+> **设计原则（防选题幻觉）**：Phase 1 拆为 1.1/1.2/1.3 三个强约束子阶段。SubAgent **禁止**虚构"已检索到的论文"，只能输出"获取建议清单"；研究设计**必须**基于真实落盘 PDF 的精读笔记才能定稿。后续所有阶段引用的论文池锚定到 `~/Downloads/essays/`。
+
+### Phase 1.1: 调研草案与获取建议（不接触真实文献）
 ```
 1. 理解研究方向（supervised: 与用户讨论 / autonomous: 基于用户输入自行分析）
-2. delegate → 调研者: 初步文献检索
-3. 综合调研结果 → 制定研究问题 + 理论框架
-4. [可选] delegate → 学术顾问: 评审理论框架
-5. supervised: ⏸️ [人类审批] 确认研究设计
-   autonomous: 🔄 自行确定，记录决策到 Gbrain
+2. delegate → 调研者: 「草案模式」(mode=draft)
+   产出:
+   a. 初步研究方向草案（候选 RQ + 候选理论框架 + 边界）
+   b. 论文获取建议清单 (acquisition-plan.md):
+      - 关键词组合（中文 + 英文，含布尔式与近义词）
+      - 关键学者列表（5-15 人，附代表作 + 所属学派）
+      - 关键方向 / 子领域 / 经典综述线索
+      - A 类下载清单：建议用户优先下载的 15-30 篇种子论文
+        （含 标题 / 作者 / 年份 / 期刊 / DOI / 建议文件名 / 优先级）
+   ⚠️ 调研者此阶段不得声称"已检索到/已读过"任何具体论文，
+       只能输出"建议检索路径"，避免幻觉。
+3. supervised: ⏸️ [人类审批] 确认草案与下载清单
+   autonomous: 🔄 自行确认，记录决策；清单写入 acquisition-plan.md
+4. ⏸️ 等待用户手动下载论文到 ~/Downloads/essays/
+   - supervised: 显式暂停，提示用户下载完成后回复"已下载完毕" / "已下载部分（清单：...）"
+   - autonomous: 不暂停整个流程；进入 Phase 1.2 时按 Step 1 的"essays 为空"分支处理
+```
+
+### Phase 1.2: 论文精读与滚雪球扩展（基于真实 PDF）
+```
+循环执行，硬上限 3 轮（不强求收敛）：
+
+1. 扫描 ~/Downloads/essays/ → 列出已落盘 PDF
+   📛 essays 为空 / PDF 数 < 启动下限（默认 5 篇）的早期失败处理:
+      - supervised: ⏸️ 提醒用户「Phase 1.2 需要至少 5 篇真实 PDF 才能启动精读」
+        → 让用户继续按 acquisition-plan.md 的 A 类清单下载，下载完毕重发"已下载完毕"
+        → ⚠️ 严禁在 essays 为空时调用 Tier 3 兜底（Tier 3 前提是已有核心论据，需被触发而非凭空生成）
+      - autonomous: 阻塞当前流程并写 [需升级]，timeline 追加 [BLOCKED] essays_empty
+        → 不得自动跳到 Tier 3，亦不得凭空生成笔记
+   ✅ essays ≥ 启动下限 → 进入 Step 2
+
+2. delegate → 调研者: 「精读模式」(mode=intensive_read)
+   - 输入: ~/Downloads/essays/ 中尚未建立笔记的 PDF 列表
+   - 任务: 对每篇真实 PDF 精读 → 写结构化全文笔记 → 写入 Gbrain
+     笔记必须含 ≥2-3 段原文 quote (带页码)
+     来源等级标注为「全文」+ 标注本地路径
+3. delegate → 调研者: 引用图谱滚雪球（基于已精读论文的 references）
+   - 用 S2 / OpenAlex 拉取被引/参考文献，识别"高频被引但本地未下载"的论文
+   - 输出 B 类下载清单 (extension-needed-roundN.md):
+     - 标题 / 作者 / 年份 / DOI / 建议文件名
+     - 触发原因（哪几篇本地论文反复引用，频次）
+     - 优先级
+4. supervised: 输出 B 类清单 → ⏸️ 暂停，用户必须从下列三种响应中选择其一:
+      ① "已下载完毕"        → 进入下一轮（round_count + 1）
+      ② "部分跳过 #N1, #N2"  → 跳过项写入本轮 skipped.md，其余进入下一轮
+      ③ "停止扩展"          → 立即结束 Phase 1.2，未下载的全部并入 extension-deferred.md
+   autonomous: 输出 B 类清单 → 不暂停，本轮不再扩展，标注「待下次 resume 时处理」
+5. 用户下载 B 类论文后 → 重复 Step 1-4
+
+⚠️ 循环硬上限: 最多 3 轮（round_count ≤ 3）
+   达到 3 轮后无论 B 类清单是否仍有论文，立即结束 Phase 1.2 进入 Phase 1.3。
+   未消化的 B 类论文写入 ~/.hermes/research-state/{slug}/literature/extension-deferred.md，
+   由后续 Phase 1.3+ 的「按需追加下载」机制按需触发。
+
+📌 提前结束循环（任一满足）:
+   - 用户主动指令"停止扩展"
+   - 本轮滚雪球未输出新增论文（自然收敛，提前终止）
+
+⚠️ Phase 1.2 严禁出现的幻觉:
+   - 笔记中引用 essays 文件夹不存在的 PDF
+   - 用 S2/OpenAlex 摘要冒充全文笔记
+   - 把 references 列表中的论文当作"已精读"
+```
+
+### Phase 1.3: 调研设计 Review 与定稿
+```
+1. delegate → 调研者: 基于 Gbrain 中所有真实笔记 → 重新审视 Phase 1.1 草案
+   - RQ 是否仍站得住脚（笔记是否覆盖核心变量）
+   - 理论框架是否需要替换/调整（笔记中是否出现更主流的框架）
+   - 研究缺口是否真实存在（笔记是否表明已有研究覆盖）
+   产出: 修订后的 research-design-v1.md
+2. [可选] delegate → 学术顾问: 对修订后设计做对抗性评审 (Devil's Advocate)
+3. delegate → 评审者: 引用真实性 4 步核查（确保设计文稿引用的论文都对应到 essays 真实笔记）
+   评审者输出必须含 boolean 字段: gate_passed: true/false（定稿门禁是否通过）
+4. supervised: ⏸️ [人类审批] 确认研究设计定稿
+   autonomous: 🔄 综合学术顾问与评审者意见自行确认
+
+✅ 定稿门禁（强制，由评审者 Step 3 输出 gate_passed 字段判定）:
+   - research-design-v1.md 中每条核心论断必须 anchor 到 ≥1 篇全文等级笔记
+   - 引用清单中的本地路径必须真实存在于 ~/Downloads/essays/
+
+❌ gate_passed = false 时的退路（⚠️ 不再退回 Phase 1.2 滚雪球循环）:
+   - 总指挥根据评审者列出的「未达标论断」，让调研者整理这些论断需要的论文
+   - 走「按需追加下载」机制（见 Phase 2 后的通用段）→ extension-extra.md
+   - 用户补充下载 → 调研者 [mode=intensive_read] 单次精读 → 重新 delegate Phase 1.3 Step 1
+   - 这样保持 round_count 冻结，避免与 Phase 1.2 的 3 轮上限冲突
 ```
 
 ### Phase 2: 系统性文献综述
 ```
-1. delegate → 调研者: 系统性检索（可并行多方向）
+0. 文献池锚定: 综述只能引用 Phase 1.2 已建立的 Gbrain 笔记池
+   （路径锚: ~/Downloads/essays/ + Gbrain literature/* 笔记）
+   不得新检索"凭空"的论文；如确需补充，走「按需追加下载」机制（见下文）
+1. delegate → 调研者: 基于已有笔记池撰写系统性综述（可分维度并行）
 2. 调研者产出 → 写入 Gbrain brain pages
-3. delegate → 评审者: 综述质量初审
+3. delegate → 评审者: 综述质量初审 + 引用真实性 4 步核查
 4. supervised: ⏸️ [人类审批] 综述通过
    autonomous: 🔄 根据评审者反馈自行判断是否通过/返工
 ```
+
+### 📌「按需追加下载」机制（Phase 1.3 / 2 / 4 / 5 通用）
+
+当 Phase 1.3 定稿门禁未过、或 Phase 2/4/5 的 SubAgent 发现笔记池缺少关键文献支撑时（包括但不限于：Phase 1.2 循环上限耗尽后的 deferred 清单仍需要部分 / 撰写时新发现的关键空白），**不要回到 Phase 1.2 重启循环**，改用以下轻量机制：
+
+```
+1. SubAgent 在输出末尾追加「追加下载请求」段:
+   - 触发当前 Phase / 章节（含 trigger_phase: P1.3 | P2 | P4 | P5/Ch_x）
+   - 论文清单（标题/作者/年份/DOI/建议文件名/触发原因）
+   - 优先级（🔴 阻塞当前章节 / 🟡 补强 / 🟢 锦上添花）
+2. 总指挥汇总写入 ~/.hermes/research-state/{slug}/literature/extension-extra.md
+   并：
+   - 在 checkpoint.md 的 extension_requests 段追加一行:
+     R-{seq}: trigger=P{x}, papers=N, status=pending_user_download
+   - 在 timeline.md 追加 [EXTENSION_REQUEST] R-{seq} | trigger=P{x} | papers=N
+   - 去重: 跳过 extension-deferred.md 中已下载/已读项 + extension-extra.md 已 fulfilled 项
+     去重规则: DOI 优先严格匹配；无 DOI 时标题 fuzzy match (编辑距离 < 5)
+3. supervised: 输出清单 → ⏸️ 用户补充下载 → 重新 delegate 该章节
+   autonomous: 输出清单 → 不阻塞，按现有笔记池继续撰写，🔴 项标注 [待补充]
+4. 用户下载后:
+   - 调研者 [mode=intensive_read] 单次精读新 PDF → 写入 Gbrain 笔记池
+   - 总指挥更新 R-{seq}.status: read_back，timeline 追加 [EXTENSION_DONE] R-{seq}
+   - 原 Phase delegate 重新跑被中断章节即可（不重新进入 Phase 1.2 循环）
+   ⚠️ Phase 1.3 触发的请求 fulfilled 后，重做 Phase 1.3 Step 1-3，round_count 不变
+```
+
+⚠️ 子任务恢复粒度（关键）:
+- SubAgent 输出「追加下载请求」**前**必须先输出当前章节的部分草稿到文件
+  （如 `~/.hermes/research-state/{slug}/drafts/Ch3.partial.md`），并在草稿中用
+  `[NEED:R-{seq}]` 占位符标注待补充的引用位置。
+- 用户补料 + 单次精读完成后，SubAgent 重做该章节时优先填充占位符，避免整章重写。
+
+⚠️ 与 Phase 1.2 滚雪球的区别：
+- **Phase 1.2 滚雪球**：基于 references 主动批量扩展，硬上限 3 轮
+- **按需追加下载**：基于"具体支撑缺口"被动补充，每次只列必须的几篇，无轮次上限
 
 ### Phase 3: 数据采集
 ```
@@ -268,3 +389,10 @@ Phase 切换时发非阻塞通知（见上文）。
 - **并行任务控制在 3 个以内** — 避免质量失控
 - **completed 课题不要直接覆盖** — 要修改请走 REVISE 分支，保留不可变基线
 - **autonomous 完成后必须输出完整报告** — 让用户能完整了解全过程
+- **🚨 Phase 1.1 严禁虚构论文** — 草案模式下调研者只能输出"获取建议"，不得声称"已读过/已检索到 X 论文"
+- **🚨 Phase 1.2 笔记必须基于真实 PDF** — 必须从 `~/Downloads/essays/` 读到的 PDF 才能写全文笔记，摘要不得冒充全文
+- **🚨 Phase 1.2 essays 为空不得自动 Tier 3** — Tier 3 触发条件是"已有核心论据需补强"，essays 完全为空时只能阻塞等待用户下载
+- **🚨 Phase 1.2 循环硬上限 3 轮** — 第 3 轮结束立即进入 Phase 1.3，未消化 B 类清单写入 `extension-deferred.md`
+- **🚨 Phase 1.3 定稿门禁失败不得退回 Phase 1.2** — gate_passed=false 时走「按需追加下载」机制，round_count 冻结，避免与 3 轮上限冲突
+- **后续阶段论文池扩展走按需追加，不回退 Phase 1.2** — Phase 1.3/2/4/5 发现支撑缺口 → 输出「追加下载请求」→ 用户补充 → 单次精读，**不重启滚雪球循环**
+- **追加下载请求必须配套部分草稿 + 占位符** — SubAgent 在 `drafts/` 输出 `.partial.md` 并用 `[NEED:R-{seq}]` 标注待补位置，避免整章重写

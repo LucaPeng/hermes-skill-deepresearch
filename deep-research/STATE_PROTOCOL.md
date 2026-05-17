@@ -109,18 +109,49 @@ status: in_progress | paused | completed | revising
 ## Phase 进度
 | Phase | 状态 | 开始 | 完成 | 关键产出 |
 |---|---|---|---|---|
-| P1 选题与调研设计 | ✅ done | ... | ... | meta/research-question.md |
-| P2 系统性文献综述 | 🟡 in_progress | ... | — | literature/review-draft-v1.md |
+| P1.1 调研草案与获取建议 | ✅ done | ... | ... | meta/acquisition-plan.md |
+| P1.2 论文精读与滚雪球 | 🟡 in_progress (round 2) | ... | — | literature/intensive-read-round-1.md, extension-needed-round-1.md |
+| P1.3 调研设计 review 与定稿 | ⬜ pending | — | — | — |
+| P2 系统性文献综述 | ⬜ pending | — | — | — |
 | P3 数据采集 | ⬜ pending | — | — | — |
 | P4 数据分析 | ⬜ pending | — | — | — |
 | P5 论文撰写 | ⬜ pending | — | — | — |
 | P6 修订定稿 | ⬜ pending | — | — | — |
 
+## 论文池状态（essays_pool）
+- 本地路径锚: `~/Downloads/essays/`
+- A 类清单（Phase 1.1）: 列入 25 篇 / 已下载 18 篇 / 已精读 18 篇
+- Phase 1.2 滚雪球轮次: round 2 / 3（**硬上限 3 轮**）
+  - round 1 B 类清单: 列入 8 篇 / 已下载 5 篇 / 已精读 5 篇 / 已跳过 0 篇
+  - round 2 B 类清单: 列入 6 篇 / 已下载 4 篇 / 已精读 0 篇（进行中） / 已跳过 1 篇
+  - round 3: 待执行
+- 待人工归类 PDF: 0
+- 读取失败 PDF: 0
+- Gbrain 笔记池: 全文 23 / 摘要 0 / 元数据 12
+- **extension-deferred.md**: Phase 1.2 三轮结束后未消化的 B 类论文（暂未下载，留待后续按需触发）
+- **extension-extra.md**: Phase 1.3/2/4/5 按需追加下载清单（撰写过程中按需补充）
+
+## 按需追加下载请求（extension_requests）
+
+> 每次 SubAgent 在 P1.3/P2/P4/P5 触发「追加下载请求」时，总指挥追加一行；用户补料、调研者精读完成后更新 status。
+> 去重规则: DOI 优先严格匹配；无 DOI 时标题 fuzzy match (编辑距离 < 5)。
+
+| Req ID | 触发 | 触发时间 | 论文数 | 优先级 | 状态 | 草稿占位 | 完成时间 |
+|---|---|---|---|---|---|---|---|
+| R-1 | P1.3 (gate fail) | 2026-05-18 10:20 | 3 | 🔴 | read_back | drafts/research-design.partial.md | 2026-05-18 14:50 |
+| R-2 | P5/Ch3 | 2026-05-22 09:10 | 5 | 🟡 | pending_user_download | drafts/Ch3.partial.md | — |
+
+状态枚举：
+- `pending_user_download`：已写入 extension-extra.md，等待用户下载
+- `partial_downloaded`：用户已下载部分论文，剩余仍 pending
+- `read_back`：用户下载完毕 + 调研者已精读 + 笔记池已更新
+- `cancelled`：用户主动放弃该请求（autonomous 模式下也可标"按现有笔记池继续"）
+
 ## 当前 Phase 内的子任务
-- ✅ delegate→调研者: 检索"理论A"方向（返回 12 篇笔记）
-- ✅ delegate→调研者: 检索"理论B"方向（返回 9 篇笔记）
-- 🟡 delegate→调研者: 检索"实证 C"方向（中断时进行中）
-- ⬜ delegate→评审者: 综述初审
+- ✅ delegate→调研者 [mode=intensive_read]: round-1 精读（返回 5 篇笔记）
+- 🟡 delegate→调研者 [mode=intensive_read]: round-2 精读（中断时进行中）
+- ⬜ delegate→调研者 [mode=snowball]: round-2 滚雪球
+- ⬜ delegate→评审者: round-2 引用核查
 
 ## 待办（Resume 时从这里开始）
 1. 重发 delegate: 检索"实证 C"方向
@@ -145,15 +176,32 @@ status: in_progress | paused | completed | revising
 # Timeline: {课题}
 
 - 2026-05-15 10:00 [START] mode=supervised
-- 2026-05-15 10:05 [PHASE] P1 begin
-- 2026-05-15 11:20 [DELEGATE] research-literature: 初步检索 → returned 18 papers
-- 2026-05-15 14:00 [DECISION] 确定研究问题与理论框架（人类审批通过）
-- 2026-05-15 14:01 [PHASE] P1 done → P2 begin
-- 2026-05-16 14:00 [DELEGATE] research-literature: 实证 C 方向 → ⚠️ 中断 (token 耗尽)
-- 2026-05-17 14:30 [RESUME] 从 checkpoint 恢复，准备重发 实证 C 方向
+- 2026-05-15 10:05 [PHASE] P1.1 begin
+- 2026-05-15 11:20 [DELEGATE] research-literature [mode=draft]: 输出 acquisition-plan.md (A 类 25 篇)
+- 2026-05-15 14:00 [DECISION] 草案审批通过
+- 2026-05-15 14:01 [PHASE] P1.1 done → P1.2 begin (round 1)
+- 2026-05-15 18:00 [DELEGATE] research-literature [mode=intensive_read, round 1]: 18 篇 → 18 笔记
+- 2026-05-15 22:00 [DELEGATE] research-literature [mode=snowball, round 1]: → extension-needed-round-1.md (8 篇)
+- 2026-05-16 10:00 [USER_RESPONSE] round 1: "已下载完毕"（5/8 实际下载）
+- 2026-05-16 14:00 [PHASE] round 1 done → round 2 begin
+- 2026-05-17 18:00 [PHASE] P1.2 done (rounds=3, deferred=4) → P1.3 begin
+- 2026-05-18 10:20 [EXTENSION_REQUEST] R-1 | trigger=P1.3 | papers=3 | prio=🔴
+- 2026-05-18 14:50 [EXTENSION_DONE] R-1 → 笔记池新增 3 篇全文笔记
+- 2026-05-18 16:00 [PHASE] P1.3 done (gate_passed=true) → P2 begin
+- 2026-05-22 09:10 [EXTENSION_REQUEST] R-2 | trigger=P5/Ch3 | papers=5 | prio=🟡
 - 2026-05-20 09:30 [REVISION_BEGIN] R1 (导师反馈)
 - 2026-05-21 17:00 [REVISION_DONE] R1 → 论文版本 v1 → v1.1-R1
 ```
+
+事件类型枚举（追加式日志）：
+- `[START]` / `[RESUME]` / `[COMPLETED]`
+- `[PHASE] X begin/done` — 含 round_count 与 P1.2 deferred 数等关键状态
+- `[DELEGATE] <skill> [mode=...]: <summary>` — SubAgent 调用记录
+- `[USER_RESPONSE] round N: "..."` — Phase 1.2 用户三选一响应
+- `[BLOCKED] <reason>` — 阻塞事件（如 essays_empty）
+- `[EXTENSION_REQUEST] R-{seq} | trigger=P{x} | papers=N | prio=...` — 按需追加下载请求
+- `[EXTENSION_DONE] R-{seq} → 笔记池新增 N 篇` — 请求 fulfilled
+- `[DECISION] <description>` / `[REVISION_BEGIN/DONE]`
 
 ---
 
@@ -172,6 +220,16 @@ status: in_progress | paused | completed | revising
 每次 Phase 切换前：
 1. 写入 checkpoint.md「关键决策记录」
 2. 写入 timeline.md `[PHASE] X done → Y begin`
+
+按需追加下载（Phase 1.3+）触发时：
+1. SubAgent 输出「追加下载请求」前必须先把当前章节部分草稿写到
+   `~/.hermes/research-state/{slug}/drafts/{section}.partial.md`，
+   并在草稿中以 `[NEED:R-{seq}]` 占位符标注待补位置
+2. 总指挥追加 `extension_requests` 表一行，status=`pending_user_download`
+3. 用户补料 + 调研者 [mode=intensive_read] 单次精读完成后：
+   - 更新该 R-{seq} 的 status: `read_back` + 完成时间
+   - timeline 追加 `[EXTENSION_DONE]`
+   - 重新 delegate 该章节，SubAgent 优先填充 `[NEED:R-{seq}]` 占位符
 
 研究全部完成时：
 1. 把 checkpoint.md 顶部 `status` 改为 `completed`

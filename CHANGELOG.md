@@ -6,6 +6,83 @@
 
 ---
 
+## [M4.1: 边界一致性修复 — 退路冲突 / 用户响应 / 空 essays / 状态衔接] - 2026-05-17
+
+针对 M4 引入后的 Review 发现的 4 个关键问题做边界对齐修复，避免实际运行时出现死循环、阻塞或状态错乱。
+
+### Skill 版本变更
+
+| Skill | 旧版本 | 新版本 |
+|---|---|---|
+| `deep-research` | 1.8.0 | **1.8.1** |
+
+### 修复 (Fixed)
+
+- **S1 Phase 1.3 定稿门禁失败的退路冲突** — 原方案"退回 Phase 1.2 继续精读 / 扩展下载"会触发 round_count > 3 与硬上限冲突；改为：评审者输出 `gate_passed: true/false`，false 时**走「按需追加下载」机制**（round_count 冻结），与 Phase 2/4/5 同一通道
+- **S2 Phase 1.2 supervised 用户响应不明** — supervised 模式下 B 类清单审批暂停时，用户必须从三选一明确响应：① "已下载完毕" → 进入下一轮；② "部分跳过 #N1, #N2" → 跳过项写入 `skipped.md`；③ "停止扩展" → 立即结束 Phase 1.2，未下载并入 `extension-deferred.md`
+- **S3 Phase 1.2 入口 essays 为空的早期失败** — Step 1 增加显式校验：essays < 启动下限（默认 5 篇）时，supervised 阻塞等用户继续下载；autonomous 写 `[BLOCKED] essays_empty` 并 `[需升级]`。**严禁 essays 完全为空时自动跳 Tier 3**（Tier 3 触发条件是"已有核心论据需补强"）
+- **M1 按需追加下载机制与 checkpoint/timeline 状态衔接缺失** — 完整定义状态闭环：
+  - SubAgent 输出请求**前**必须先写 partial 草稿到 `drafts/{section}.partial.md`，并在引用位置用 `[NEED:R-{seq}]` 占位符标注
+  - 总指挥写入 `extension-extra.md` + checkpoint 的 `extension_requests` 表新增一行（status: pending_user_download / partial_downloaded / read_back / cancelled）
+  - timeline 新增事件类型 `[EXTENSION_REQUEST]` / `[EXTENSION_DONE]`
+  - 用户补料后调研者 [mode=intensive_read] 单次精读 → 状态回写 `read_back` → 重新 delegate 时优先填充 `[NEED:R-{seq}]` 占位符，避免整章重写
+  - 去重规则：DOI 优先严格匹配；无 DOI 时标题 fuzzy match (编辑距离 < 5)
+
+### 变更 (Changed)
+
+- **「按需追加下载」适用范围扩展为 Phase 1.3 / 2 / 4 / 5 通用**（原 Phase 2/4/5 通用）
+- **Pitfalls 调整为 7 条**（原 5 条）：新增 essays 为空不得自动 Tier 3 / Phase 1.3 门禁失败不得退回 Phase 1.2 / 追加下载请求必须配套部分草稿 + 占位符
+- **STATE_PROTOCOL.md** 新增「按需追加下载（Phase 1.3+）触发时」维护规则段
+- **审批表**新增 "Phase 1.2 入口（essays 不足）" 行；"Phase 1.3 完成" 行带 gate_passed 判定逻辑
+
+---
+
+## [M4: 防选题幻觉 — Phase 1 三段式重排] - 2026-05-17
+
+针对"调研者在选题阶段虚构论文文献"的幻觉风险，将 Phase 1（选题与调研设计）拆分为 1.1 / 1.2 / 1.3 三个强约束子阶段，并把整个研究的论文池强制锚定到 `~/Downloads/essays/` 真实落盘 PDF。
+
+> **2026-05-17 微调**: Phase 1.2 滚雪球循环增加**硬上限 3 轮**（不强求收敛）；超出部分写入 `extension-deferred.md`，由后续 Phase 2/4/5「按需追加下载」机制处理。避免论文池过度膨胀同时保留补强通道。
+
+### Skill 版本变更
+
+| Skill | 旧版本 | 新版本 |
+|---|---|---|
+| `deep-research` | 1.7.0 | **1.8.0** |
+| `research-literature` | 1.6.0 | **1.7.0** |
+
+### 新增 (Added)
+
+- **research-literature 引入 5 种工作模式**：每次 delegate 必须在 context 带 `mode` 字段
+  - `draft` (Phase 1.1)：仅基于通识知识输出研究方向草案 + A 类下载清单，**严禁声称已检索/已读过任何论文**
+  - `intensive_read` (Phase 1.2)：仅对 `~/Downloads/essays/` 中真实落盘 PDF 写全文笔记
+  - `snowball` (Phase 1.2)：基于已精读论文 references 拉 S2/OpenAlex 引文图谱 → 输出 B 类下载清单（含频次统计 + 轮次状态 N/3）
+  - `review` (Phase 1.3)：基于真实笔记池审视 Phase 1.1 草案 → 产出 research-design 定稿
+  - `synthesis` (Phase 2)：基于已有笔记池写综述，**严禁新检索**
+- **deep-research/SKILL.md** 新增 SOP 设计原则段：声明"防选题幻觉"约束 + Phase 1 三段式说明
+- **DELEGATION_TEMPLATES.md** 新增模板 1a-1e：分别对应 5 种 mode 的 delegate 模板，每个模板都内置严格的红线与防幻觉约束
+- **STATE_PROTOCOL.md** checkpoint 模板新增 P1.1 / P1.2 / P1.3 三个 Phase 行 + 「论文池状态（essays_pool）」字段（含 A 类 / B 类清单进度、滚雪球轮次 N/3、extension-deferred / extension-extra 入口）
+- **Pitfalls 新增 5 条防幻觉红线**：Phase 1.1 严禁虚构 / Phase 1.2 必须基于真实 PDF / Phase 1.2 循环硬上限 3 轮 / Phase 1.3 定稿前必须通过引用核查 / 后续阶段走按需追加而非回退 Phase 1.2
+
+### 变更 (Changed)
+
+- **Research SOP 重排**：原 Phase 1（单一阶段）→ 拆为 Phase 1.1 / 1.2 / 1.3，且 Phase 1.2 是"扫描 → 精读 → 滚雪球 → 用户补充下载"的循环过程，**硬上限 3 轮**
+- **Phase 1.2 循环硬上限 3 轮**：第 3 轮结束后无论 B 类清单是否仍有未下载论文，立即结束循环进入 Phase 1.3；剩余写入 `extension-deferred.md`
+- **新增「按需追加下载」机制（Phase 2/4/5 通用）**：撰写过程中暴露的支撑缺口由 SubAgent 输出「追加下载请求」段，汇总到 `extension-extra.md`，单次精读补入笔记池；**不重启 Phase 1.2 滚雪球循环**
+- **Phase 1.3 定稿门禁**：每条核心论断必须 anchor ≥1 篇全文等级笔记，且引用清单中的本地路径必须真实存在于 `~/Downloads/essays/`，否则退回 Phase 1.2 ~~（M4.1 已修订为：走「按需追加下载」机制，不再退回 Phase 1.2，避免与 3 轮硬上限冲突）~~
+- **Phase 2 文献池锚定**：综述只能引用 Phase 1.2 已建立的笔记池，不得新检索"凭空"论文
+- **docs/README.md → v3.6**：架构模式新增"Phase 1 三段式防选题幻觉"；4.1 SOP 重写 Phase 1.1/1.2/1.3 流程 + 按需追加机制；审批表新增 1.1/1.2/1.3 三行；M4 写入里程碑表
+
+### 设计动机
+
+旧 Phase 1 流程让调研者直接"做初步文献检索 + 制定研究问题 + 理论框架"，但 SubAgent 会在没有真实下载/读过论文的情况下，基于 LLM 通识"凭空生成"具体的作者-年份-标题，污染后续整个研究链路。
+
+新流程通过三个手段彻底切断幻觉路径：
+1. **物理隔离**：Phase 1.1 草案模式不接触任何 API 检索 + 真实文献，只输出"建议清单"；用户作为唯一的"下载执行者"，把真实 PDF 放入 `~/Downloads/essays/`
+2. **真实性门禁**：Phase 1.2 精读模式仅对真实落盘 PDF 写笔记，文件名/读取失败的 PDF 不允许伪造；Phase 1.3 定稿前必须通过评审者的"引用真实性 4 步核查"
+3. **池子封闭**：后续 Phase 2/4/5 引用的论文池就是 `~/Downloads/essays/` + Gbrain 笔记，需扩展必须回 Phase 1.2 走滚雪球流程，不允许任何阶段"凭空新检索"
+
+---
+
 ## [Refactor: 长文件拆分 + 冗余精简 + Tier 3 兜底通道] - 2026-05-17
 
 把过长的 SKILL.md 拆分到附录文件，统一收口冗余的 SubAgent 约束块，并把"人工下载兜底通道"
