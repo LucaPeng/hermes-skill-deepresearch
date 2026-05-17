@@ -1,7 +1,7 @@
 ---
 name: deep-research
 description: 多Agent学术研究 — 启动完整研究团队，完成从选题到论文终稿的全流程
-version: 1.5.0
+version: 1.6.0
 metadata:
   hermes:
     tags: [research, academic, paper, multi-agent, orchestration]
@@ -19,6 +19,258 @@ metadata:
 
 ## Overview
 本 skill 作为**研究项目总指挥 (PI)**，通过 `delegate_task` 编排多个 SubAgent 协同完成学术研究。你不直接做具体的调研/分析/写作，而是分解任务、分派执行、汇总结果、做学术决策。
+
+---
+
+## 启动协议（必做，先于一切）
+
+收到 `/deep-research [...]` 命令时，**先执行启动探测，再决定走哪条分支**：新建 / 续跑 / 修订。
+状态持久化在本地文件系统，不依赖 Gbrain（Gbrain 用于知识，不用于运行时状态）。
+
+### 状态根目录与文件结构
+```
+~/.hermes/research-state/                    ← 状态根目录
+├── index.md                                 ← 课题索引（所有研究的注册表）
+└── {slug}/                                  ← 每个研究独立目录
+    ├── checkpoint.md                        ← 主进度（覆盖式更新）
+    ├── timeline.md                          ← 事件流（追加式日志）
+    └── revisions/                           ← 修订历史（多轮）
+        ├── R1-YYYY-MM-DD/
+        │   ├── feedback.md                  ← 反馈原文（不可改）
+        │   ├── revision-plan.md             ← 拆解后的订正任务
+        │   ├── changes.md                   ← 本轮变更日志
+        │   └── status.md                    ← 本轮修订进度
+        └── R2-YYYY-MM-DD/...
+```
+
+### 命令一览
+
+| 命令 | 行为 |
+|---|---|
+| `/deep-research [课题]` | 自动探测：命中 in_progress → resume；命中 completed → 询问 (supervised) / 默认 revise (autonomous)；未命中 → new |
+| `/deep-research supervised [课题]` / `/deep-research autonomous [课题]` | 同上，但显式指定模式 |
+| `/deep-research resume [课题]` | 强制续跑（in_progress 课题）；找不到则报错 |
+| `/deep-research revise [课题]` | 强制进入修订（completed 课题）；找不到则报错 |
+| `/deep-research revise [课题] --feedback-from <路径或文本>` | 直接传入反馈源；否则交互式收集 |
+| `/deep-research restart [课题]` | 强制新建（自动备份原 checkpoint 为 `checkpoint.md.bak.{ts}`） |
+| `/deep-research list` | 列出 index.md 中所有研究（slug / 课题 / 状态 / 模式 / 最后更新） |
+
+### 启动探测流程（伪代码）
+```
+1. mkdir -p ~/.hermes/research-state/
+2. 读 ~/.hermes/research-state/index.md（不存在则创建空索引）
+3. fuzzy match by (slug + 课题描述关键词)
+   ├── 命中且 status=in_progress  → goto RESUME 分支
+   ├── 命中且 status=completed:
+   │     ├── supervised: 询问"该课题已完成，要查看 / 续写 / 重启？"
+   │     └── autonomous: 默认进入 REVISE 分支
+   ├── 多个候选:
+   │     ├── supervised: 列表让用户挑
+   │     └── autonomous: 选 last_updated 最近的那个
+   └── 未命中                     → goto NEW 分支
+```
+
+### NEW 分支（新建研究）
+1. 用户输入推算 `slug`（去标点 + 拼音/英文小写 + 截 30 字 + 短哈希）
+2. 创建 `~/.hermes/research-state/{slug}/`
+3. 在 `index.md` 追加一行（slug / 课题 / status=in_progress / mode / 时间戳 / 路径）
+4. 初始化 `checkpoint.md` + `timeline.md`（模板见下文）
+5. 进入 Phase 1
+
+### RESUME 分支（断点续跑）
+1. 读 `{slug}/checkpoint.md` 解析 Phase 进度 + 当前子任务 + 待办
+2. 读 `{slug}/timeline.md` 最近 20 条事件 → 构建上下文摘要
+3. supervised：向用户报告续跑点并请确认
+   ```
+   🔁 检测到已有研究 checkpoint
+   课题: {...}
+   上次中断点: Phase {X} / {子任务名称}
+   下一步: {待办列表}
+   是否续跑？(yes / no / 我要修改方向)
+   ```
+   autonomous：直接续跑，不询问，但在 timeline 追加 `[RESUME]` 事件
+4. 严格从 checkpoint「待办」第一项开始 delegate，**不重做已完成项**
+5. 每次 delegate 返回后立即更新 checkpoint + 追加 timeline
+
+### REVISE 分支（修订模式，详见下方"修订工作流"章节）
+
+---
+
+## 状态文件模板
+
+### `index.md`
+```markdown
+# Research State Index
+
+| Slug | 课题描述 | 状态 | 模式 | 最后更新 | 路径 |
+|---|---|---|---|---|---|
+| social-commerce-trust-2026 | 社交电商中消费者信任的形成机制 | in_progress | supervised | 2026-05-17 14:32 | ~/.hermes/research-state/social-commerce-trust-2026/ |
+```
+
+### `checkpoint.md`
+```markdown
+# Research Checkpoint: {课题}
+
+last_updated: 2026-05-17 14:32
+mode: supervised | autonomous
+status: in_progress | paused | completed | revising
+
+## 课题元信息
+- 课题: ...
+- 研究问题: ...
+- 理论框架: ...
+- Gbrain 命名空间: {研究前缀}
+- 论文版本: v1（修订后会更新为 v1.1-R1 等）
+
+## Phase 进度
+| Phase | 状态 | 开始 | 完成 | 关键产出 |
+|---|---|---|---|---|
+| P1 选题与调研设计 | ✅ done | ... | ... | meta/research-question.md |
+| P2 系统性文献综述 | 🟡 in_progress | ... | — | literature/review-draft-v1.md |
+| P3 数据采集 | ⬜ pending | — | — | — |
+| P4 数据分析 | ⬜ pending | — | — | — |
+| P5 论文撰写 | ⬜ pending | — | — | — |
+| P6 修订定稿 | ⬜ pending | — | — | — |
+
+## 当前 Phase 内的子任务
+- ✅ delegate→调研者: 检索"理论A"方向（返回 12 篇笔记）
+- ✅ delegate→调研者: 检索"理论B"方向（返回 9 篇笔记）
+- 🟡 delegate→调研者: 检索"实证 C"方向（中断时进行中）
+- ⬜ delegate→评审者: 综述初审
+
+## 待办（Resume 时从这里开始）
+1. 重发 delegate: 检索"实证 C"方向
+2. delegate→评审者: 综述初审
+3. 若评审通过 → 写入 P2 完成，进入 P3
+
+## 关键决策记录（追加）
+- 2026-05-15: 采用 SOR 模型 + 信任迁移理论作为整合框架（依据：xxx）
+
+## 已建立的产出物（路径清单）
+- meta/research-question.md
+- meta/theoretical-framework.md
+- literature/note-001 ... note-021
+- literature/review-draft-v1.md
+
+## 修订历史
+- (空) 或: R1 (2026-05-20) 导师反馈 → 已完成 → v1.1-R1
+```
+
+### `timeline.md`
+```markdown
+# Timeline: {课题}
+
+- 2026-05-15 10:00 [START] mode=supervised
+- 2026-05-15 10:05 [PHASE] P1 begin
+- 2026-05-15 11:20 [DELEGATE] research-literature: 初步检索 → returned 18 papers
+- 2026-05-15 14:00 [DECISION] 确定研究问题与理论框架（人类审批通过）
+- 2026-05-15 14:01 [PHASE] P1 done → P2 begin
+- 2026-05-16 14:00 [DELEGATE] research-literature: 实证 C 方向 → ⚠️ 中断 (token 耗尽)
+- 2026-05-17 14:30 [RESUME] 从 checkpoint 恢复，准备重发 实证 C 方向
+- 2026-05-20 09:30 [REVISION_BEGIN] R1 (导师反馈)
+- 2026-05-21 17:00 [REVISION_DONE] R1 → 论文版本 v1 → v1.1-R1
+```
+
+---
+
+## Checkpoint 维护规则（强制）
+
+每次 delegate 返回后，**总指挥必须**：
+1. 解析 SubAgent 返回结果，提取产出文件的绝对路径
+2. 用 file 工具更新 `~/.hermes/research-state/{slug}/checkpoint.md`：
+   - 在「Phase 进度」更新当前 Phase 的产出
+   - 在「子任务」勾选完成项 / 添加新项
+   - 在「待办」更新下一步
+   - 在「已建立的产出物」追加新路径
+3. 用 file 工具追加到 `~/.hermes/research-state/{slug}/timeline.md`：
+   - `[DELEGATE] <skill>: <goal> → <returned summary>`
+
+每次 Phase 切换前：
+1. 写入 checkpoint.md「关键决策记录」
+2. 写入 timeline.md `[PHASE] X done → Y begin`
+
+研究全部完成时：
+1. 把 checkpoint.md 顶部 `status` 改为 `completed`
+2. 同步更新 index.md 中该课题状态为 `completed`
+3. timeline.md 追加 `[COMPLETED]`
+
+---
+
+## 修订工作流（REVISE 分支）
+
+### 设计哲学
+> 修订**不是**"在原文件上 patch"，而是**生成新版本**，原产出物不可变（immutable baseline）。
+
+### 与 RESUME 的区别
+| 维度 | resume | revise |
+|---|---|---|
+| 触发 | 上次中断 | 外部反馈到来 |
+| 输入 | 上次待办 | 反馈文档 |
+| 工作量模型 | 顺序推进 P1→P6 | 跳进特定 Phase 做局部订正 |
+| 是否需要规划 | 否 | **是**（拆反馈 → 任务清单） |
+| 历史数据角色 | 上下文 | **不可变基线** |
+
+### 修订六步走
+
+#### Step R1: 反馈收集
+- 来源支持：用户口述 / 文件路径 / 粘贴文本 / Gbrain 中的笔记
+- 多来源支持：feedback.md 可有多个 source 块（导师 / 审稿人A / 审稿人B / 自查）
+- 原文写入 `revisions/R{n}-{date}/feedback.md`，**不做任何修改和润色**
+- 命令参数 `--feedback-from <路径>` 可直接读入文件
+
+#### Step R2: 反馈结构化
+拆成结构化表格：
+```
+| ID | 反馈内容 | 类型 | 严重度 | 涉及章节 | 涉及 Phase |
+|---|---|---|---|---|---|
+| F1 | "理论框架对 SOR 模型的论述不够" | 理论 | 🔴 | §2.2 | P2/P5 |
+| F2 | "样本量偏小，需讨论 power" | 方法 | 🟡 | §3.3 / §5 | P4/P5 |
+| F3 | "结论部分缺少实践启示" | 写作 | 🟢 | §6.2 | P5 |
+| F4 | "参考文献格式不统一" | 格式 | 🟢 | references | P5 |
+```
+- 类型: 理论 / 方法 / 写作 / 格式
+- 严重度: 🔴 必改 / 🟡 应改 / 🟢 可改
+- supervised：给用户审批拆解结果
+- autonomous：直接进入 R3
+- 用户已自己拆好 → 跳过本步
+
+#### Step R3: 订正计划制定
+- 每条反馈 → 1+ 个 delegate 任务
+- 标注前置依赖（如"补理论"前要先"补检索"）
+- 写入 `revisions/R{n}/revision-plan.md`
+- 必须显式声明"与原研究的关系"：
+  - 不变更的部分（RQ / 假设 / 数据 / 主分析）
+  - 仅订正的部分（具体章节 + 反馈 ID）
+
+#### Step R4: 执行订正（按依赖顺序）
+每个 delegate 任务的 context **必须包含**：
+- 原产出文件路径（基线）
+- 对应反馈条目原文（F-ID）
+- 修订要求："基于基线最小改动，不得整章重写（除非反馈明确要求）"
+- 输出要求：diff 摘要 + 新版本路径
+
+#### Step R5: 质量门禁（复用 M1 链路）
+- delegate → 评审者: 引用真实性核查（**重点关注新增/变更的引用**）
+- delegate → 学术顾问: 对抗性审查（**聚焦修订段落是否真解决了反馈**）
+
+#### Step R6: 收尾
+- 写 `revisions/R{n}/changes.md`（章节级 diff 摘要 + 引用增减 + 字数变化）
+- 更新 `revisions/R{n}/status.md` → `completed`
+- 主 `checkpoint.md`「修订历史」追加一行 R{n} 完成
+- `timeline.md` 追加 `[REVISION_DONE] R{n} → 论文版本 vX.Y-R{n}`
+- 论文文件版本规则：`论文/main-draft-v1.md` 不动，新增 `论文/main-draft-v{x.y}-R{n}.md`
+
+### 修订中断恢复
+若 R{n} 中途中断（token 耗尽 / 用户暂停）：
+- `revisions/R{n}/status.md` 保留 in_progress 状态
+- 用户再次启动 → 启动协议探测到 status=revising → 沿用 RESUME 机制接管该轮 R{n}
+- 不重做已完成的订正任务
+
+### 多轮修订
+一个研究可有 R1, R2, R3... 多轮修订：
+- 每轮独立子目录，互不干扰
+- 历史 diff 可在主 checkpoint 的「修订历史」按时序回看
+- 论文文件版本递增：v1 → v1.1-R1 → v1.2-R2 → v1.3-R3
 
 ---
 
@@ -282,7 +534,9 @@ delegate_task(
 5. 整合为初步文献综述报告
 6. 识别 3-5 个研究缺口
 
-输出: 一份完整的初步文献综述报告 (Markdown)，含文献获取状态表（来源 + 等级）
+输出: 一份完整的初步文献综述报告 (Markdown)，含文献获取状态表（来源 + 等级），**末尾附「产出文件清单」段**列出所有写入的笔记 / 综述文件绝对路径以便总指挥更新 checkpoint。
+
+**修订模式时（如适用）**: context 中会附带反馈 ID（F-ID）和"针对哪条反馈做哪种检索"。请在产出笔记的元信息中标注触发反馈 ID，便于追溯。详见 /research-literature 中"修订模式约束"。
     """,
     toolsets=["web", "file", "terminal"]
 )
@@ -293,7 +547,7 @@ delegate_task(
 delegate_task(tasks=[
     {
         "goal": "检索 [理论A] 相关文献",
-        "context": "请加载 /research-literature skill。\n\n可用工具: /cnki-paper-downloader（中文全文）、terminal（S2/OpenAlex API）、web、file。\n\n重要约束: 你是 SubAgent，不能直接与用户交互。遇到问题在输出中标注 [需升级]。\n\n研究主题: ...\n搜索范围: ...\n输出: 该理论的研究现状总结 + 10-15 篇核心文献笔记（含来源、等级、OA 状态）",
+        "context": "请加载 /research-literature skill。\n\n可用工具: /cnki-paper-downloader（中文全文）、terminal（S2/OpenAlex API）、web、file。\n\n重要约束: 你是 SubAgent，不能直接与用户交互。遇到问题在输出中标注 [需升级]。\n\n研究主题: ...\n搜索范围: ...\n输出: 该理论的研究现状总结 + 10-15 篇核心文献笔记（含来源、等级、OA 状态）+ 末尾「产出文件清单」段（用于 checkpoint）",
         "toolsets": ["web", "file", "terminal"]
     },
     {
@@ -332,7 +586,9 @@ delegate_task(
 - H3: [假设内容]
 
 数据文件位置: [路径]
-输出: 完整分析报告 (含表格和结论)
+输出: 完整分析报告 (含表格和结论)，**末尾附「产出文件清单」段**列出所有写入的脚本 / 数据 / 报告文件绝对路径以便总指挥更新 checkpoint。
+
+**修订模式时（如适用）**: context 中会附带基线分析报告路径 + 反馈 ID（F-ID）。请基于基线最小改动；输出含 diff 摘要 + 新版本路径，并在笔记中标注触发反馈 ID。
     """,
     toolsets=["terminal", "file"]
 )
@@ -360,7 +616,11 @@ delegate_task(
 
 **强制 (防幻觉)**: 每个引用必须在草稿末尾"引用清单"中列出（含笔记路径、来源等级、引用页/段）。详见 /research-writing 中"引用规则（防幻觉）"。
 
-输出: 完整章节文本 (Markdown)，**末尾附完整引用清单**
+**强制 (状态持久化)**: 输出末尾必须附「产出文件清单」段，列出本次写入的所有文件绝对路径（草稿 / 引用清单 / Gbrain 页面），便于总指挥更新 checkpoint。
+
+**修订模式时（如适用）**: context 中会附带"基线文件路径 + 反馈 ID"。请基于基线最小改动，不得整章重写；输出必须含 diff 摘要 + 新版本路径（命名规则 `*-v{x.y}-R{n}.md`）。详见 /research-writing 中"修订模式约束"。
+
+输出: 完整章节文本 (Markdown)，**末尾附完整引用清单 + 产出文件清单**
     """,
     toolsets=["file", "web"]
 )
@@ -380,6 +640,10 @@ delegate_task(
 本轮审查编号: 第 [N] 轮
 
 **强制 (防幻觉)**: 必须先执行"引用真实性核查"4 个 Step（清单完整性 / 笔记存在性 / 来源等级匹配 / 关键论断原文比对），再做内容审查。详见 /research-review 中"引用真实性核查"。
+
+**修订模式时（如适用）**: 校验范围限定为变更段落 + 全文新增引用（不重审已通过部分）。详见 /research-review 中"修订模式约束"。
+
+**强制 (状态持久化)**: 输出末尾必须附「产出文件清单」段（如有写入审查报告文件），便于总指挥更新 checkpoint。
 
 输出: 结构化审查报告 (含问题分级: 🔴严重/🟡中度/🟢轻微，**含引用真实性核查结果**)
     """,
@@ -408,6 +672,10 @@ delegate_task(
 - 结论的可信度和可推广性
 
 **重点 (对抗性审查)**: 必须执行 Devil's Advocate 角色，回答 4 个对抗性问题（替代解释 / 证伪路径 / 样本边界 / 理论选择），并列出攻击点（🔴致命/🟡严重/🟢警告）。详见 /research-advisor 中"对抗性提问"。
+
+**修订模式时（如适用）**: 对抗性审查聚焦"修订段落是否真正解决了反馈"，并复检是否引入新问题。详见 /research-advisor 中"修订模式约束"。
+
+**强制 (状态持久化)**: 输出末尾必须附「产出文件清单」段（如有写入评审报告文件），便于总指挥更新 checkpoint。
 
 输出: 学术评审报告 (含评级 A/B/C/D + **对抗性审查章节** + 改进建议)
     """,
@@ -465,9 +733,13 @@ Phase 切换时发送非阻塞通知：
 - **delegate 时必须传完整上下文** — SubAgent 看不到你的对话历史
 - **每次 delegate 都指明要加载的 skill** — 在 context 开头写 "请加载 /xxx skill"
 - **每次 delegate 都加 SubAgent 约束** — 告知 SubAgent 不能直接与用户交互
+- **每次 delegate 都要求 SubAgent 回报产出文件路径** — 用于 checkpoint 维护
+- **每次 delegate 返回后立即更新 checkpoint + timeline** — 不可批量延迟，否则中断时丢失进度
+- **修订模式 delegate context 必须含基线路径 + 反馈 ID** — 否则 SubAgent 无从下手
 - **supervised 模式不跳过人类审批** — 发出审批请求后立即停止
 - **autonomous 模式完全不阻塞** — 任何情况都不暂停，自行解决所有问题
 - **并行任务控制在 3 个以内** — 避免质量失控
 - **系统开发需求** — supervised: 输出给用户; autonomous: 自行用 terminal 解决
 - **灵活调整 SOP** — 不必严格走完每个 Phase，根据需求灵活推进
 - **autonomous 完成后必须输出完整报告** — 让用户能完整了解全过程
+- **completed 课题不要直接覆盖** — 要修改请走 REVISE 分支，保留不可变基线

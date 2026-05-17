@@ -1,7 +1,7 @@
 ---
 name: research-literature
 description: 学术文献检索与综述 — 系统性检索、文献笔记、理论分析、研究缺口识别
-version: 1.3.0
+version: 1.4.0
 metadata:
   hermes:
     tags: [research, literature, academic, survey, citation, cnki]
@@ -280,3 +280,25 @@ S2 / OpenAlex 返回的 `abstract` 字段可直接摘录到笔记，**不允许�
 - 跨学科内容超出理解能力
 - 检索结果严重不足
 - S2 / OpenAlex API 持续限频或不可达，影响发现进度
+
+## 修订模式约束（当 delegate context 含「反馈 ID」或 revision-plan 时）
+
+修订模式下的检索任务由具体反馈 ID 触发，请在产出中显式标注追溯链。
+
+### 输入识别
+当 delegate context 包含 `F-ID`（如 F1 / F2）或 `revision-plan` 路径时，视为修订模式。
+
+### 改动原则
+- 检索范围限定为反馈 ID 直接相关的方向（如 F1 要求"补 SOR 模型论述" → 仅检索 SOR 相关文献）
+- 不顺手扩大检索范围，不替换基线已纳入的文献
+- 新笔记必须在元信息中标注触发反馈 ID
+
+### 笔记追加字段（修订模式下必填）
+```markdown
+**触发反馈**: F1 (导师反馈 R1: 理论框架对 SOR 模型的论述不够)
+**修订归属**: revisions/R1-2026-05-20/
+```
+
+### 输出要求
+- 末尾「产出文件清单」段标明哪些笔记是新增（new）、哪些是补充（augment 已有笔记）
+- 不要删除/覆盖基线已纳入的笔记，如确需更正信息，新建一个补充笔记并在原笔记顶部加 `[已被 R{n} 补充更新，见 ...]`

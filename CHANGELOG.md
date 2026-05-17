@@ -6,6 +6,90 @@
 
 ---
 
+## [M3: 状态持久化 + 断点续跑 + 修订模式] - 2026-05-17
+
+让长流程研究**可中断、可续跑、可修订**。状态持久化在本地文件系统（不依赖 Gbrain），
+新增第三种启动模式 `revise` 用于已完成课题的反馈订正。
+
+### Skill 版本变更
+
+| Skill | 旧版本 | 新版本 |
+|---|---|---|
+| `deep-research` | 1.5.0 | **1.6.0** |
+| `research-writing` | 1.1.0 | **1.2.0** |
+| `research-review` | 1.1.0 | **1.2.0** |
+| `research-advisor` | 1.1.0 | **1.2.0** |
+| `research-literature` | 1.3.0 | **1.4.0** |
+| `research-analysis` | 1.0.0 | **1.1.0** |
+
+### 新增 (Added)
+
+#### 状态持久化与断点续跑
+- **deep-research**: 新增「启动协议」整章 — 任何启动命令先做探测，分流到 NEW / RESUME / REVISE 三种分支
+- **deep-research**: 新增状态文件结构 `~/.hermes/research-state/{slug}/`，含 `index.md` / `checkpoint.md` / `timeline.md` / `revisions/`
+- **deep-research**: 新增 5 条命令：
+  - `/deep-research resume [课题]` 强制续跑
+  - `/deep-research revise [课题] [--feedback-from <路径>]` 强制修订
+  - `/deep-research restart [课题]` 强制新建（自动备份原 checkpoint）
+  - `/deep-research list` 列出所有研究索引
+- **deep-research**: 新增「Checkpoint 维护规则」章节 — 每次 delegate 返回后强制更新 checkpoint + timeline
+- **deep-research**: 提供 `index.md` / `checkpoint.md` / `timeline.md` 的标准模板
+- **deep-research**: 所有 delegate 模板（调研者/分析师/撰写者/评审者/学术顾问）context 中追加 **「产出文件清单」回报要求**，让总指挥能正确填写 checkpoint
+
+#### 修订模式（REVISE 分支）
+- **deep-research**: 新增「修订工作流」整章，定义 6 步流程：
+  - R1 反馈收集（多源支持：导师 / 审稿人 / 自查）
+  - R2 反馈结构化（ID / 类型 / 严重度 / 章节 / Phase 表格）
+  - R3 订正计划制定（拆任务 + 标依赖 + 声明不变更项）
+  - R4 执行订正（基于基线最小改动）
+  - R5 质量门禁（复用 M1：评审者 + 学术顾问对抗审查）
+  - R6 收尾（changes.md + 论文版本号 v1.1-R1）
+- **deep-research**: 引入「不可变基线」原则 — 修订生成新版本文件，原文件不动
+- **deep-research**: 修订支持多轮（R1, R2, R3...），每轮独立子目录
+- **deep-research**: 修订中断 → 沿用 RESUME 机制接管 R{n} 续跑
+- **research-writing**: 新增「修订模式约束」章节 — 最小改动 + 逐条对应反馈 ID + 输出 diff 摘要
+- **research-review**: 新增「修订模式审查」章节 — 范围限定为变更段落 + 4 项修订专属审查（反馈采纳完整性 / 新增引用真实性 / 基线一致性 / 实质改进）
+- **research-advisor**: 新增「修订模式约束」章节 — 4 个修订专属对抗问题（是否真正解决 / 是否引入新问题 / 基线相容性 / 过度修订风险）
+- **research-literature**: 新增「修订模式约束」章节 — 检索范围限定 + 笔记追加「触发反馈 ID」字段 + 不覆盖基线笔记
+- **research-analysis**: 新增「修订模式约束」章节 — **绝不重做主分析**，仅做补充分析（power / 稳健性 / 子样本），追加而非覆盖
+
+### 变更 (Changed)
+
+- **deep-research**: Pitfalls 增补 4 条 —
+  - 每次 delegate 都要求 SubAgent 回报产出文件路径
+  - 每次 delegate 返回后立即更新 checkpoint + timeline（不可批量延迟）
+  - 修订模式 delegate context 必须含基线路径 + 反馈 ID
+  - completed 课题不要直接覆盖（要改请走 REVISE）
+- **research-writing**: 升级条件追加 "修订模式下反馈与基线立场不可调和"
+
+### 设计要点
+
+- **状态层与知识层分离**：运行时状态用本地文件系统（轻量、可读），学术知识用 Gbrain（图谱、检索）；signal-detector 不再被 Phase/待办污染
+- **不可变基线**：所有修订生成新版本文件（`*-v{x.y}-R{n}.md`），保留完整版本演进史；论文/分析报告/笔记的原始版本永不被覆盖
+- **修订是新循环**：REVISE 与 RESUME 在语义、输入、规划方式上有本质区别，因此独立建模
+- **质量门禁复用 M1**：修订段落仍走"评审者引用真实性核查 + 学术顾问对抗性审查"，但范围限定，避免重审已通过部分
+- **多轮修订支持**：R1（导师反馈）→ R2（外审反馈）→ R3（自查）逻辑天然映射到 `revisions/Rn-{date}/` 目录树
+
+### 升级影响
+
+- **向后兼容**：现有 SOP / delegate 协议不变；启动协议是叠加层，对老用法无破坏
+- **行为差异**：
+  - 启动 `/deep-research [课题]` 会先探测状态目录（首次为空时自动初始化）
+  - SubAgent 输出会在末尾多一段「产出文件清单」
+  - 修订流程下论文文件会有版本号后缀 `-v1.1-R1` 等
+- **依赖**：
+  - 总指挥需要 `file` 工具能读写 `~/.hermes/research-state/`
+  - 不需要任何新的 MCP server 或外部依赖
+
+### 故意未做 (Deferred)
+
+- 状态目录跨设备同步（建议用户自行用 git 或 rsync 处理）
+- 状态文件指纹/校验（避免外部改动）
+- 自动化的 slug 冲突解决（撞 slug 时仍提示用户）
+- 修订评审的量化 Rubric（仍沿用 PASS / 小修 / 大修 / REJECT 文字判定）
+
+---
+
 ## [M2: 英文文献元数据/图谱通道] - 2026-05-17
 
 本轮迭代为调研者补充**英文文献的发现 + 摘要 + 引文图谱通道**，

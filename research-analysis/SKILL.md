@@ -1,7 +1,7 @@
 ---
 name: research-analysis
 description: 研究数据分析 — 数据采集设计、统计分析、可视化、结论解读
-version: 1.0.0
+version: 1.1.0
 metadata:
   hermes:
     tags: [data, statistics, analysis, visualization, research]
@@ -153,3 +153,36 @@ CFA 拟合: χ²/df=[X], CFI=[X], TLI=[X], RMSEA=[X], SRMR=[X]
 - 必须报告效应量和置信区间，不能只看 p 值
 - 不做 p-hacking（反复尝试不同组合直到显著）
 - 数据和代码要保存可复现
+
+## 修订模式约束（当 delegate context 含「基线 + 反馈 ID」或 revision-plan 时）
+
+修订模式下的分析任务由具体反馈 ID 触发，**绝不重做主分析**（H1-Hn 路径系数保持），仅做补充/局部订正。
+
+### 输入识别
+当 delegate context 包含 `baseline 报告路径`、`F-ID`（如 F2）或 `revision-plan` 路径时，视为修订模式。
+
+### 改动原则
+- **保留主分析**：除非反馈明确质疑主分析的有效性（如样本严重偏误、关键变量编码错误），否则不重跑主分析
+- **追加而非覆盖**：补充分析（如 post-hoc power、稳健性、子样本）作为新表/新段落追加，不动原表
+- **数据基线不变**：不重新清洗数据；如发现需重新清洗，必须 [需升级] 让总指挥裁决
+- **每个补充分析必须能映射回反馈 ID**
+
+### 输出要求
+分析报告末尾追加「修订补充」段：
+```
+## 修订补充 (R{n})
+### F2 应对：post-hoc power 分析
+- 方法: G*Power 计算 / pwr 包
+- 结果: 当前 N=180, effect size=0.25, alpha=0.05 → power = 0.78
+- 解读: 略低于 0.80 标准，但接近，且主要假设均显著，说明检验力可接受
+- 局限性补充: 已在 §5 局限性新增一段说明
+
+### 数据/脚本变化
+- 新增脚本: scripts/post-hoc-power-R1.py
+- 新增结果文件: results/power-analysis-R1.csv
+- 主分析结果文件 (results/main-analysis-v1.csv): 未变更
+
+### diff 摘要
+- 新增分析项: 1 (post-hoc power)
+- 主分析: 未变更
+```
