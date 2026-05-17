@@ -1,0 +1,234 @@
+deep-research/STATE_PROTOCOL.md
+  494418bc35f8c951 56-87,90-91,100-103,237-239,241,246-248 gitai:{"mixed_line_ranges":[],"operations":[{"operation_id":"6a09e1ce2b0054ad08a06d0d","tool_type":"agent","tool_id":"SearchReplace","line_ranges":[{"Range":[56,87]},{"Range":[90,91]},{"Range":[100,103]},{"Range":[237,239]},{"Single":241},{"Range":[246,248]}]}]}
+CHANGELOG.md
+  494418bc35f8c951 9-38 gitai:{"mixed_line_ranges":[],"operations":[{"operation_id":"6a09e1ce2b0054ad08a06d0d","tool_type":"agent","tool_id":"SearchReplace","line_ranges":[{"Range":[9,38]}]}]}
+docs/README.md
+  494418bc35f8c951 258,261-263 gitai:{"mixed_line_ranges":[],"operations":[{"operation_id":"6a09e1ce2b0054ad08a06d0d","tool_type":"agent","tool_id":"SearchReplace","line_ranges":[{"Single":258},{"Range":[261,263]}]}]}
+deep-research/SKILL.md
+  494418bc35f8c951 4,44-93,432-433 gitai:{"mixed_line_ranges":[],"operations":[{"operation_id":"6a09e1ce2b0054ad08a06d0d","tool_type":"agent","tool_id":"SearchReplace","line_ranges":[{"Single":4},{"Range":[44,93]},{"Range":[432,433]}]}]}
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "bf11cd8e2c3e7d8622e362075303ff70face86ad",
+  "prompts": {
+    "494418bc35f8c951": {
+      "agent_id": {
+        "tool": "trae",
+        "id": "6a095be02b0054ad08a06807",
+        "model": "openrouter-2o__dev"
+      },
+      "human_author": "LucaPeng <624948921@qq.com>",
+      "messages": [],
+      "total_additions": 132,
+      "total_deletions": 18,
+      "accepted_lines": 132,
+      "overriden_lines": 0
+    }
+  },
+  "attestation_metadata": {
+    "CHANGELOG.md": [
+      {
+        "hash": "494418bc35f8c951",
+        "line_ranges": [
+          {
+            "Range": [
+              9,
+              38
+            ]
+          }
+        ],
+        "mixed_line_ranges": [],
+        "operations": [
+          {
+            "operation_id": "6a09e1ce2b0054ad08a06d0d",
+            "tool_type": "agent",
+            "tool_id": "SearchReplace",
+            "line_ranges": [
+              {
+                "Range": [
+                  9,
+                  38
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "deep-research/SKILL.md": [
+      {
+        "hash": "494418bc35f8c951",
+        "line_ranges": [
+          {
+            "Single": 4
+          },
+          {
+            "Range": [
+              44,
+              93
+            ]
+          },
+          {
+            "Range": [
+              432,
+              433
+            ]
+          }
+        ],
+        "mixed_line_ranges": [],
+        "operations": [
+          {
+            "operation_id": "6a09e1ce2b0054ad08a06d0d",
+            "tool_type": "agent",
+            "tool_id": "SearchReplace",
+            "line_ranges": [
+              {
+                "Single": 4
+              },
+              {
+                "Range": [
+                  44,
+                  93
+                ]
+              },
+              {
+                "Range": [
+                  432,
+                  433
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "deep-research/STATE_PROTOCOL.md": [
+      {
+        "hash": "494418bc35f8c951",
+        "line_ranges": [
+          {
+            "Range": [
+              56,
+              87
+            ]
+          },
+          {
+            "Range": [
+              90,
+              91
+            ]
+          },
+          {
+            "Range": [
+              100,
+              103
+            ]
+          },
+          {
+            "Range": [
+              237,
+              239
+            ]
+          },
+          {
+            "Single": 241
+          },
+          {
+            "Range": [
+              246,
+              248
+            ]
+          }
+        ],
+        "mixed_line_ranges": [],
+        "operations": [
+          {
+            "operation_id": "6a09e1ce2b0054ad08a06d0d",
+            "tool_type": "agent",
+            "tool_id": "SearchReplace",
+            "line_ranges": [
+              {
+                "Range": [
+                  56,
+                  87
+                ]
+              },
+              {
+                "Range": [
+                  90,
+                  91
+                ]
+              },
+              {
+                "Range": [
+                  100,
+                  103
+                ]
+              },
+              {
+                "Range": [
+                  237,
+                  239
+                ]
+              },
+              {
+                "Single": 241
+              },
+              {
+                "Range": [
+                  246,
+                  248
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "docs/README.md": [
+      {
+        "hash": "494418bc35f8c951",
+        "line_ranges": [
+          {
+            "Single": 258
+          },
+          {
+            "Range": [
+              261,
+              263
+            ]
+          }
+        ],
+        "mixed_line_ranges": [],
+        "operations": [
+          {
+            "operation_id": "6a09e1ce2b0054ad08a06d0d",
+            "tool_type": "agent",
+            "tool_id": "SearchReplace",
+            "line_ranges": [
+              {
+                "Single": 258
+              },
+              {
+                "Range": [
+                  261,
+                  263
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "remote_transcripts": {
+    "494418bc35f8c951": {
+      "tool": "trae",
+      "conversation_id": "6a095be02b0054ad08a06807",
+      "session_id": "6a095be02b0054ad08a06807",
+      "status": "remote_only",
+      "message": "Remote transcript resolution is not implemented yet for TRAE prompts."
+    }
+  }
+}
