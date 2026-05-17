@@ -6,6 +6,67 @@
 
 ---
 
+## [Refactor: 长文件拆分 + 冗余精简 + Tier 3 兜底通道] - 2026-05-17
+
+把过长的 SKILL.md 拆分到附录文件，统一收口冗余的 SubAgent 约束块，并把"人工下载兜底通道"
+（Tier 3）整合进 research-literature。本次为重构 + 收尾 commit，非功能性新增（除 Tier 3 已在前一会话写入）。
+
+### Skill 版本变更
+
+| Skill | 旧版本 | 新版本 |
+|---|---|---|
+| `deep-research` | 1.6.0 | **1.7.0** |
+| `research-literature` | 1.4.0 | **1.6.0** |
+| `research-writing` | 1.2.0 | 1.2.0（仅链接精简） |
+| `research-review` | 1.2.0 | 1.2.0（仅链接精简） |
+| `research-advisor` | 1.2.0 | 1.2.0（仅链接精简） |
+| `research-analysis` | 1.1.0 | 1.1.0（仅链接精简） |
+
+### 新增 (Added)
+
+- **deep-research/STATE_PROTOCOL.md**：从 SKILL.md 抽出状态根目录结构、命令列表、启动探测伪代码、状态文件模板（index/checkpoint/timeline）、Checkpoint 维护规则，并在末尾首次集中收口「SubAgent 通用约束」（不能与用户交互、`[需升级]`、产出文件清单、修订模式 F-ID）。
+- **deep-research/REVISION_WORKFLOW.md**：从 SKILL.md 抽出 REVISE 分支六步走（R1-R6）、与 RESUME 的对比、修订中断恢复、多轮修订规则。
+- **deep-research/DELEGATION_TEMPLATES.md**：保留 1 个完整 delegate 模板（启动文献调研），其余 4 个（并行检索 / 数据分析 / 论文撰写 / 质量审查 + 学术顾问）以**差异点**形式呈现，避免大段重复。
+- **research-literature/MANUAL_DOWNLOAD.md**：从 SKILL.md 抽出 Tier 3 人工下载兜底通道完整规范（约定文件夹、三层兜底链、触发条件、Step A-D 操作流程、模式差异、与续跑/修订协同、不要做的事）。
+- **research-literature/SKILL.md**：在原有数据源章节中增加 Tier 3 入口段（一句话描述 + 链接到 MANUAL_DOWNLOAD.md），并在 Step 3 论文获取流程中接入 Tier 3 触发说明。
+- **README.md**：新增「文件结构」章节，呈现重构后的目录树。
+
+### 变更 (Changed)
+
+- **deep-research/SKILL.md**：从 745 行精简到约 210 行：
+  - 启动协议、状态文件模板、checkpoint 维护规则全部下沉到 STATE_PROTOCOL.md
+  - 修订工作流下沉到 REVISION_WORKFLOW.md
+  - 5 个 delegate 模板下沉到 DELEGATION_TEMPLATES.md
+  - Research SOP 改为单一总览表（六阶段一行一阶段，列出主要动作、关键 delegate、审批节点）
+  - Pitfalls 清单保留全部要点
+- **research-literature/SKILL.md**：从 401 行精简到约 307 行：
+  - 保留**所有** S2 / OpenAlex / wget / curl 命令示例不动
+  - 笔记模板与综述模板压缩注释行
+  - Tier 3 详细操作流程下沉到 MANUAL_DOWNLOAD.md
+  - 工作流程 Step 3 给 Tier 3 留入口
+- **4 个子 Skill（writing / review / advisor / analysis / literature）**：原各自重复的 5 行「SubAgent 约束（当被 delegate_task 调用时）」块替换为 2 行链接 + 一句独立调用说明，整体收口到 STATE_PROTOCOL.md。
+
+### 设计要点
+
+- **单一信息源原则**：SubAgent 通用约束只在 STATE_PROTOCOL.md 写一次，其他 Skill 通过链接引用，避免后续修改时多处不同步。
+- **主 SKILL.md 是导航**：让总指挥在加载主 SKILL.md 时能快速看完六阶段 SOP 与 Pitfalls，详细规范按需 Read 附录。
+- **附录可独立阅读**：每个附录 Markdown 自成体系，不依赖主 SKILL.md 上下文。
+- **保留 curl 全量**：根据用户要求，S2 / OpenAlex / wget / 引文图谱遍历的 curl 示例**全部保留**，不做压缩。
+- **行数对照**（精简前/后）：deep-research 745→210；research-literature 401→307（含 Tier 3 入口）；其他 4 个子 Skill 各减 3 行。
+
+### 升级影响
+
+- **向后兼容**：所有 SOP / delegate 协议 / 状态文件结构 / 修订流程**完全不变**。
+- **行为差异**：无（仅文档组织重构）。
+- **依赖**：无新增。
+
+### 故意未做 (Deferred)
+
+- 进一步合并多 Skill 共享的「修订模式约束」段（4 个子 Skill 各自的修订约束细节有差异，保留各自独立段落）
+- 把 docs/ 历史设计文档同步重构（保持原貌作为历史档案）
+
+---
+
 ## [M3: 状态持久化 + 断点续跑 + 修订模式] - 2026-05-17
 
 让长流程研究**可中断、可续跑、可修订**。状态持久化在本地文件系统（不依赖 Gbrain），

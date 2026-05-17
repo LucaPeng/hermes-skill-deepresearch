@@ -165,3 +165,26 @@ Gbrain 的存储结构**不由 Skills 硬性规定**。总指挥（deep-research
 | 统计分析方法 | `research-analysis/SKILL.md` |
 | 审查标准和清单 | `research-review/SKILL.md` |
 | 流程节点和审批规则 | `deep-research/SKILL.md` |
+
+## 文件结构
+
+```
+.
+├── deep-research/
+│   ├── SKILL.md                     ← 总指挥主入口（精简版）
+│   ├── STATE_PROTOCOL.md            ← 状态持久化、启动探测、checkpoint 维护
+│   ├── REVISION_WORKFLOW.md         ← REVISE 分支六步走、不可变基线
+│   └── DELEGATION_TEMPLATES.md      ← 5 个 delegate 模板
+├── research-literature/
+│   ├── SKILL.md                     ← 文献检索与综述（含 S2/OpenAlex curl）
+│   └── MANUAL_DOWNLOAD.md           ← Tier 3 人工下载兜底通道
+├── research-analysis/SKILL.md
+├── research-writing/SKILL.md
+├── research-review/SKILL.md
+├── research-advisor/SKILL.md
+├── docs/                            ← 历史设计文档（参考）
+├── README.md
+└── CHANGELOG.md
+```
+
+> 子 Skill 加载主 SKILL.md 即可正常工作；附录文件由总指挥按需 Read（也通过 Markdown 链接相互引用）。
